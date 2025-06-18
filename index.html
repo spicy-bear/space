@@ -105,43 +105,10 @@
         }
         /* Station Menu */
         .station-menu-content { width: 90%; max-width: 800px; }
-        /* Removed max-height and overflow-y from .upgrade-tree */
-        .upgrade-tree { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            width: 100%; 
-            padding-right: 1rem; 
-        }
-        .upgrade-node { 
-            display: flex; 
-            align-items: center; 
-            margin-bottom: 1.5rem; 
-            width: 100%; 
-            background-color: #1f2937; 
-            padding: 1rem; 
-            border-radius: 8px; 
-            border: 2px solid #374151; 
-        }
-        .upgrade-icon { 
-            width: 64px; height: 64px; 
-            border: 2px solid #6b7280; 
-            background-color: #1f2937; 
-            border-radius: 8px; 
-            margin-right: 1.5rem; 
-            flex-shrink: 0; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 32px;
-        }
-        .upgrade-icon.can-afford { border-color: #a3e635; }
-        .upgrade-icon.is-max { border-color: #f97316; }
-        .upgrade-details { text-align: left; flex-grow: 1; }
         .upgrade-cost { font-size: 0.7rem; color: #fca5a5; margin-top: 0.5rem; }
 
-        /* New styles for icon-based upgrade selection */
-        #upgradeIconsContainer {
+        /* Icon-based upgrade selection */
+        .icon-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
@@ -182,6 +149,12 @@
             color: #D1D5DB;
             text-transform: uppercase;
         }
+        /* Style for equipped items */
+        .upgrade-icon-button.equipped {
+            border-color: #818cf8; /* A different highlight for equipped */
+        }
+        .upgrade-icon-button.can-afford { border-color: #a3e635; }
+        .upgrade-icon-button.is-max { border-color: #f97316; }
 
         #upgradeDetailsBox {
             background-color: #1f2937;
@@ -193,7 +166,6 @@
             text-align: left;
             margin-top: 1rem;
             box-shadow: 0 0 10px rgba(251, 146, 60, 0.2);
-            /* Hidden by default, shown by JS */
             display: none; 
             flex-direction: column;
             justify-content: space-between;
@@ -213,30 +185,107 @@
             font-size: 0.8rem;
             margin-top: 0.75rem;
         }
+
+        /* Tabbed menu in Armory */
+        .station-tabs {
+            display: flex;
+            margin-bottom: 1.5rem;
+            width: 100%;
+            justify-content: center;
+        }
+        .station-tab {
+            padding: 0.75rem 1.5rem;
+            background-color: #374151;
+            border: 2px solid #6b7280;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #D1D5DB;
+            transition: all 0.2s ease-in-out;
+            margin: 0 0.25rem;
+        }
+        .station-tab.active {
+            background-color: #1f2937;
+            border-color: #FB923C;
+            color: #FB923C;
+        }
+        .station-tab:hover:not(.active) {
+            background-color: #4B5563;
+        }
+        .tab-content {
+            width: 100%;
+            display: none;
+            flex-direction: column; 
+            align-items: center; 
+        }
+        .tab-content.active {
+            display: flex; 
+        }
+
+        .message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #1f2937;
+            border: 2px solid #f97316;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            z-index: 100;
+            box-shadow: 0 0 20px rgba(251, 146, 60, 0.4);
+            display: none; /* Hidden by default */
+        }
+        .message-box button {
+            margin-top: 1rem;
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
+
+        <!-- Auto-Shoot Toggle -->
+        <button id="autoShootToggle" class="game-button absolute top-4 left-4 text-sm px-4 py-2" style="z-index: 5; display: none;">Auto-Shoot: OFF</button>
+        <!-- Abort Mission Button -->
+        <button id="abortMissionButton" class="game-button absolute top-4 right-4 text-sm px-4 py-2" style="z-index: 5; display: none;">Abort Mission (X)</button>
+
         <div id="mapSelection" class="overlay overlay-hidden"></div>
         <div id="levelUpSelection" class="overlay overlay-hidden"></div>
         <div id="stationMenu" class="overlay overlay-hidden">
             <h1 class="text-4xl mb-8 text-orange-300" id="stationMenuTitle"></h1>
-            <div id="upgradeIconsContainer" class="flex flex-wrap justify-center gap-4 mb-8">
-                <!-- Upgrade icons will be dynamically loaded here -->
+            
+            <div class="station-tabs">
+                <div class="station-tab active" data-tab="weapons">Weapons</div>
+                <div class="station-tab" data-tab="upgrades">Upgrades</div>
             </div>
-            <div id="upgradeDetailsBox" class="hidden">
+
+            <div id="weaponsTabContent" class="tab-content active">
+                 <div id="weaponIconsContainer" class="icon-container"></div>
+            </div>
+
+            <div id="upgradesTabContent" class="tab-content">
+                <div id="upgradeIconsContainer" class="icon-container"></div>
+            </div>
+            
+            <div id="upgradeDetailsBox">
                 <h3 id="detailTitle"></h3>
                 <p id="detailDesc"></p>
                 <p id="detailLevel"></p>
                 <p class="cost-text" id="detailCost"></p>
                 <button id="detailBuyButton" onclick="" class="game-button mt-4 w-full"></button>
             </div>
+
             <button onclick="window.closeStationMenu()" class="game-button mt-8 text-sm px-6 py-3">Return to Starbase</button>
         </div>
         <div id="gameOver" class="overlay overlay-hidden"></div>
         <div id="victory" class="overlay overlay-hidden"></div>
         <div id="hud-materials"></div>
+        <div id="messageBox" class="message-box">
+            <p id="messageBoxText" class="mb-4"></p>
+            <button class="game-button" onclick="document.getElementById('messageBox').style.display = 'none'">OK</button>
+        </div>
     </div>
 
     <script>
@@ -253,9 +302,10 @@
         let globalAnimTimer = 0;
         const mouse = { x: 0, y: 0, facingRight: true, click: false, prevClick: false };
         let activeMap = null;
-        let activeStation = null; // Stores 'workshop' or 'armory'
-        let selectedUpgradeId = null; // Track currently selected upgrade in menu
-        
+        let activeStation = null;
+        let selectedUpgradeId = null;
+        let selectedWeaponId = null;
+
         // --- Entity & Data Arrays ---
         const player = {};
         const playerProjectiles = [];
@@ -264,11 +314,11 @@
         const shards = [];
         const materialDrops = [];
         const terrain = [];
-        const baseScenery = [];
+        const stars = [];
         const gameDuration = 120;
         let timer = gameDuration;
         let waveConfig = {};
-        const keys = { w: false, a: false, s: false, d: false, ' ': false, e: false };
+        const keys = { w: false, a: false, s: false, d: false, ' ': false, e: false, x: false, escape: false };
         let interactionTarget = null;
 
         // --- Data Definitions ---
@@ -278,6 +328,7 @@
             workshop: { x: 0, y: 0, width: 90, height: 60, id: 'workshop', name: 'Workshop' },
             armory: { x: 0, y: 0, width: 60, height: 80, id: 'armory', name: 'Armory' },
             database: { x: 0, y: 0, width: 70, height: 70, id: 'database', name: 'Database' },
+            infirmary: { x: 0, y: 0, width: 70, height: 70, id: 'infirmary', name: 'Infirmary' },
             table: { x: 0, y: 0 },
             bed: { x: 0, y: 0, width: 120, height: 70, id: 'bed', name: 'Bed' },
             kitchen: { x: 0, y: 0, width: 80, height: 70, id: 'kitchen', name: 'Galley' },
@@ -293,7 +344,7 @@
             { id: 'atk_power', title: 'Power Shot', desc: '+10% Attack Damage', apply: p => { p.attackPower *= 1.1; } },
             { id: 'atk_speed', title: 'Rapid Fire', desc: '+15% Fire Rate', apply: p => { p.fireRate *= 1.15; } },
             { id: 'proj_speed', title: 'Hyper-Velocity', desc: '+20% Projectile Speed', apply: p => { p.projectileSpeed *= 1.2; } },
-            { id: 'max_hp', title: 'Titanium Hull', desc: '+25 Max Health', apply: p => { p.maxHealth += 25; p.health += 25; } },
+            { id: 'max_hp', title: 'Titanium Hull', desc: '+25 Max Health', apply: p => { p.maxHealth += 25; p.health = Math.min(p.health + 25, p.maxHealth); } },
             { id: 'hp_regen', title: 'Nano-Repair', desc: 'Regen 1 HP/sec', apply: p => { p.healthRegen += 1; } },
             { id: 'move_speed', title: 'Servo-Grease', desc: '+10% Move Speed', apply: p => { p.speed *= 1.1; } },
             { id: 'stamina_regen', title: 'Adrenal Pump', desc: '+20% Stamina Regen', apply: p => { p.staminaRegen *= 1.2; } },
@@ -304,16 +355,26 @@
             alien_chitin: { color: '#FCA5A5', name: 'Alien Chitin' },
             plant_fiber: { color: '#86EFAC', name: 'Plant Fiber' },
         };
+        const weapons = {
+            'blaster': { id: 'blaster', name: 'Standard Blaster', description: 'Your trusty starting weapon. Balanced fire rate and damage.', icon: '🔫',
+                         baseDamage: 10, baseFireRate: 1, baseProjectileSpeed: 300, cost: {} },
+            'shotgun': { id: 'shotgun', name: 'Scattergun', description: 'Fires multiple projectiles in a wide cone.', icon: '💥',
+                         baseDamage: 5, baseFireRate: 0.7, baseProjectileSpeed: 250, projectilesPerShot: 3, spreadAngle: 0.3, cost: { moondust: 100, alien_chitin: 50 } },
+            'phaser': { id: 'phaser', name: 'Phaser Rifle', description: 'Rapid-fire energy bursts. Low damage but high accuracy and speed.', icon: '⚡',
+                         baseDamage: 7, baseFireRate: 2, baseProjectileSpeed: 400, cost: { moondust: 70, plant_fiber: 80 } },
+            'bfg': { id: 'bfg', name: 'Big Friendly Gun', description: 'Slow firing, but devastating. Fires a massive, high-damage projectile.', icon: '💣',
+                       baseDamage: 50, baseFireRate: 0.3, baseProjectileSpeed: 200, cost: { moondust: 200, alien_chitin: 150, plant_fiber: 100 } },
+        };
         const permanentUpgrades = {
             workshop: [
                 { id: 'suit_hp', name: 'Reinforce Hull', desc: '+10 Max Health', maxLevel: 10, cost: (l) => ({ moondust: 10 * (l + 1) }), icon: '❤️' },
                 { id: 'suit_regen', name: 'Nano-bots', desc: '+0.1 HP/sec', maxLevel: 5, cost: (l) => ({ moondust: 20 * (l + 1), plant_fiber: 5 * (l + 1)}), icon: '➕' },
                 { id: 'suit_stamina', name: 'Capacitors', desc: '+10 Max Stamina', maxLevel: 5, cost: (l) => ({ moondust: 15 * (l + 1) }), icon: '⚡' },
             ],
-            armory: [
-                { id: 'gun_dmg', name: 'Calibrate Blaster', desc: '+1 Base Damage', maxLevel: 10, cost: (l) => ({ moondust: 10 * (l + 1), alien_chitin: 5 * (l+1) }), icon: '🎯' },
-                { id: 'gun_rate', name: 'Tune Firing Pin', desc: '+5% Fire Rate', maxLevel: 5, cost: (l) => ({ alien_chitin: 10 * (l+1) }), icon: '🔥' },
-                { id: 'gun_proj_speed', name: 'Velocity Enhancer', desc: '+10 Projectile Speed', maxLevel: 5, cost: (l) => ({ moondust: 10 * (l + 1), alien_chitin: 5 * (l+1) }), icon: '🚀' }
+            armory: [ 
+                { id: 'gun_dmg', name: 'Calibrate Weapon', desc: '+1 Base Damage (Equipped)', maxLevel: 10, cost: (l) => ({ moondust: 10 * (l + 1), alien_chitin: 5 * (l+1) }), icon: '🎯' },
+                { id: 'gun_rate', name: 'Tune Firing Pin', desc: '+5% Fire Rate (Equipped)', maxLevel: 5, cost: (l) => ({ alien_chitin: 10 * (l+1) }), icon: '🔥' },
+                { id: 'gun_proj_speed', name: 'Velocity Enhancer', desc: '+10 Proj. Speed (Equipped)', maxLevel: 5, cost: (l) => ({ moondust: 10 * (l + 1), alien_chitin: 5 * (l+1) }), icon: '🚀' }
             ]
         };
         const textures = {};
@@ -335,53 +396,222 @@
             },
             drawCharger: (ctx, x, y) => { const p = 4; ctx.save(); ctx.translate(x, y); ctx.fillStyle = '#7f1d1d'; ctx.fillRect(-2*p, -1*p, 4*p, 3*p); ctx.fillStyle = '#BE123C'; ctx.fillRect(-1.5*p, -1.5*p, 3*p, 2*p); ctx.fillStyle = '#FCA5A5'; ctx.fillRect(-1*p, -2*p, 2*p, 1*p); ctx.fillStyle = '#991b1b'; ctx.fillRect(-2.5*p, 0*p, 1*p, 2*p); ctx.fillStyle = '#991b1b'; ctx.fillRect(1.5*p, 0*p, 1*p, 2*p); ctx.restore(); },
             drawSpitter: (ctx, x, y) => { const p = 3; ctx.save(); ctx.translate(x, y); ctx.fillStyle = '#5b21b6'; ctx.fillRect(-1.5*p, -2.5*p, 3*p, 5*p); ctx.fillStyle = '#8B5CF6'; ctx.fillRect(-1*p, -2*p, 2*p, 4*p); ctx.fillStyle = '#C4B5FD'; ctx.fillRect(-0.5*p, -3.5*p, 1*p, 1*p); ctx.fillStyle = '#7c3aed'; ctx.fillRect(-2.5*p, -1.5*p, 1*p, 3*p); ctx.fillStyle = '#7c3aed'; ctx.fillRect(1.5*p, -1.5*p, 1*p, 3*p); ctx.restore(); },
+            drawWorm: (ctx, x, y, animTimer) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const segmentCount = 6;
+                const baseRadius = 7;
+                const segmentOffset = 5;
+                const wiggleMagnitude = 2;
+                const wiggleSpeed = 5;
+                for (let i = 0; i < segmentCount; i++) {
+                    const radius = baseRadius - i * 0.8;
+                    const offsetY = i * segmentOffset;
+                    const offsetX = Math.sin(animTimer * wiggleSpeed + i * 0.5) * wiggleMagnitude;
+                    ctx.fillStyle = `hsl(${100 - i * 5}, 70%, ${40 + i * 5}%)`;
+                    ctx.beginPath();
+                    ctx.arc(offsetX, offsetY, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = `hsl(${100 - i * 5}, 70%, ${20 + i * 5}%)`;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+                ctx.fillStyle = '#84cc16';
+                ctx.beginPath();
+                ctx.arc(Math.sin(animTimer * wiggleSpeed) * wiggleMagnitude, -baseRadius - 3, baseRadius * 1.1, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(-3 + Math.sin(animTimer * wiggleSpeed) * wiggleMagnitude, -baseRadius - 5, 1.5, 0, Math.PI * 2);
+                ctx.arc(3 + Math.sin(animTimer * wiggleSpeed) * wiggleMagnitude, -baseRadius - 5, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            },
             drawTerminal: (ctx, x, y, width, height, animTimer) => { ctx.fillStyle = '#1e293b'; ctx.fillRect(x - width/2, y - height/2, width, height); ctx.fillStyle = '#0f172a'; ctx.fillRect(x - width/2 + 5, y - height/2 + 5, width - 10, height-10); const scanLineY = (y - height/2 + 10) + ((animTimer * 20) % (height*0.5)); ctx.fillStyle = '#f97316'; ctx.fillRect(x - width/2 + 10, scanLineY, width - 20, 2); ctx.fillStyle = '#334155'; ctx.fillRect(x - width/2 + 10, y - height/2 + height*0.7, width-20, height*0.2); },
             drawWorkshop: (ctx, x, y, width, height) => { ctx.fillStyle = '#4b5563'; ctx.fillRect(x - width/2, y-height/2, width, height); ctx.fillStyle = '#1e293b'; ctx.fillRect(x - width/2+5, y-height/2+5, width-10, height-10); ctx.fillStyle = '#f97316'; ctx.fillRect(x - width/2+10, y-height/2+10, 5, 5); ctx.fillStyle = '#9ca3af'; ctx.fillRect(x - width/2+20, y-height/2+20, 20, 5); ctx.fillRect(x - width/2+45, y-height/2+30, 5, 15); },
             drawArmory: (ctx, x, y, width, height) => { ctx.fillStyle = '#334155'; ctx.fillRect(x-width/2, y-height/2, width, height); ctx.fillStyle = '#1e293b'; ctx.fillRect(x-width/2 + 5, y-height/2, width-10, height-5); ctx.fillStyle = '#f97316'; ctx.fillRect(x-width/2 + 10, y-height/2 + 10, width-20, 5); ctx.fillRect(x-width/2 + 10, y-height/2 + 20, width-20, 5); },
             drawBed: (ctx, x, y, width, height) => { ctx.fillStyle = '#334155'; ctx.fillRect(x-width/2, y-height/2, width, height); ctx.fillStyle = '#1e293b'; ctx.fillRect(x-width/2+5, y-height/2+5, width-10, height-10); ctx.fillStyle = '#c2410c'; ctx.fillRect(x-width/2+10, y-height/2+10, width-20, height-25); ctx.fillStyle = '#f97316'; ctx.fillRect(x-width/2+15, y-height/2+15, 20, 10); },
             drawKitchen: (ctx, x, y, width, height) => { ctx.fillStyle = '#4b5563'; ctx.fillRect(x-width/2, y-height/2, width, height); ctx.fillStyle = '#1e293b'; ctx.fillRect(x-width/2+5, y-height/2+5, width-10, height-10); ctx.fillStyle = '#0f172a'; ctx.fillRect(x-width/2+10, y-height/2+10, width-20, 20); ctx.fillStyle = '#f97316'; ctx.fillRect(x-width/2+15, y-height/2+15, 5, 5); },
             drawTableAndChairs: (ctx, x, y) => { ctx.fillStyle = '#78350f'; ctx.fillRect(x - 30, y - 15, 60, 30); ctx.fillStyle = '#9ca3af'; ctx.fillRect(x - 25, y - 10, 50, 20); ctx.fillStyle = '#374151'; ctx.fillRect(x-50, y-10, 15, 20); ctx.fillStyle = '#111827'; ctx.fillRect(x-48, y-8, 11, 16); ctx.fillStyle = '#374151'; ctx.fillRect(x+35, y-10, 15, 20); ctx.fillStyle = '#111827'; ctx.fillRect(x+37, y-8, 11, 16); },
-            // New drawing function for Database
             drawDatabase: (ctx, x, y, width, height) => {
-                ctx.fillStyle = '#607d8b'; // Dark blue-gray for the database unit
+                ctx.fillStyle = '#607d8b';
                 ctx.fillRect(x - width / 2, y - height / 2, width, height);
-                ctx.fillStyle = '#37474f'; // Darker screen/panel
+                ctx.fillStyle = '#37474f';
                 ctx.fillRect(x - width / 2 + 5, y - height / 2 + 5, width - 10, height - 10);
-                ctx.fillStyle = '#4fc3f7'; // Light blue data lines
+                ctx.fillStyle = '#4fc3f7';
                 for (let i = 0; i < 3; i++) {
                     ctx.fillRect(x - width / 2 + 10, y - height / 2 + 15 + i * 15, width - 20, 2);
                 }
             },
-            drawStarbase: (ctx, width, height, animTimer) => { ctx.fillStyle = textures.cratered_moon; ctx.fillRect(0, 0, width, height); baseScenery.forEach(r => sprites.drawRock(ctx, r.x, r.y, r.subType)); const room = starbaseHub.rect; ctx.fillStyle = textures.starbase_floor; ctx.fillRect(room.x, room.y, room.width, room.height); ctx.strokeStyle = '#475569'; ctx.lineWidth = 10; ctx.strokeRect(room.x, room.y, room.width, room.height); ctx.fillStyle = '#0f172a'; for(let i=room.x; i < room.x + room.width; i += 80) { ctx.fillRect(i, room.y - 10, 20, 10); ctx.fillRect(i+30, room.y + room.height, 20, 10); } },
+            drawInfirmary: (ctx, x, y, width, height) => {
+                ctx.fillStyle = '#7f1d1d';
+                ctx.fillRect(x - width / 2, y - height / 2, width, height);
+                ctx.fillStyle = '#b91c1c';
+                ctx.fillRect(x - 15, y - 5, 30, 10);
+                ctx.fillRect(x - 5, y - 15, 10, 30);
+                ctx.fillStyle = '#eab308';
+                ctx.beginPath();
+                ctx.arc(x - width/2 + 10, y - height/2 + 10, 5, 0, Math.PI * 2);
+                ctx.fill();
+            },
+            drawStarbase: (ctx, width, height, animTimer) => {
+                // Draw the space background
+                ctx.fillStyle = '#0a0a0f';
+                ctx.fillRect(0, 0, width, height);
+                // Draw the moving stars
+                stars.forEach(star => {
+                    const opacity = star.size / 2.0;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                // Draw the internal room floor
+                const room = starbaseHub.rect;
+                // FIX: Add solid fill first to ensure opacity
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(room.x, room.y, room.width, room.height);
+                ctx.fillStyle = textures.starbase_floor;
+                ctx.fillRect(room.x, room.y, room.width, room.height);
+                
+                // Draw the room walls
+                ctx.fillStyle = '#1a202c';
+                ctx.fillRect(room.x - 10, room.y - 10, room.width + 20, 10);
+                ctx.fillRect(room.x - 10, room.y + room.height, room.width + 20, 10);
+                ctx.fillRect(room.x - 10, room.y - 10, 10, room.height + 20);
+                ctx.fillRect(room.x + room.width, room.y - 10, 10, room.height + 20);
+
+                // Decorative wall elements
+                ctx.fillStyle = '#0f172a';
+                for(let i=room.x; i < room.x + room.width; i += 80) {
+                    ctx.fillRect(i, room.y - 10, 20, 10);
+                    ctx.fillRect(i+30, room.y + room.height, 20, 10);
+                }
+            },
             drawPlanetFloor: (ctx, width, height) => { if (activeMap) ctx.fillStyle = textures[activeMap.id]; else ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);},
-            drawRock: (ctx, x, y, subType) => { ctx.fillStyle = '#52525b'; ctx.beginPath(); if(subType === 1) { ctx.moveTo(x, y); ctx.lineTo(x + 20, y - 10); ctx.lineTo(x + 30, y + 15); ctx.lineTo(x + 10, y + 25); ctx.lineTo(x - 15, y + 10); } else { ctx.moveTo(x, y); ctx.lineTo(x + 15, y - 15); ctx.lineTo(x + 25, y + 5); ctx.lineTo(x - 5, y + 20); } ctx.closePath(); ctx.fill(); ctx.fillStyle = '#a1a1aa'; ctx.beginPath(); if(subType === 1) { ctx.moveTo(x, y); ctx.lineTo(x + 20, y-10); ctx.lineTo(x-5, y-5); } else { ctx.moveTo(x, y); ctx.lineTo(x+15, y-15); ctx.lineTo(x+5, y-5); } ctx.closePath(); ctx.fill(); },
-            drawPlant: (ctx, x, y, subType) => { ctx.fillStyle = subType === 1 ? '#166534' : '#15803d'; ctx.strokeStyle = '#14532d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); if (subType < 3) { ctx.lineTo(x, y - 20); ctx.stroke(); ctx.fillStyle = subType === 1 ? '#4ade80' : '#86efac'; ctx.beginPath(); ctx.arc(x, y - 25, 10, 0, Math.PI * 2); ctx.fill(); } else { ctx.bezierCurveTo(x-10, y-15, x+10, y-25, x, y-30); ctx.stroke(); ctx.fillStyle = subType === 3 ? '#22c55e' : '#10b981'; ctx.beginPath(); ctx.fillRect(x-4, y-35, 8, 8); } },
+            drawRock: (ctx, x, y, subType) => {
+                ctx.fillStyle = '#52525b';
+                ctx.beginPath();
+                if(subType === 1) {
+                    ctx.moveTo(x, y); ctx.lineTo(x + 20, y - 10); ctx.lineTo(x + 30, y + 15);
+                    ctx.lineTo(x + 10, y + 25); ctx.lineTo(x - 15, y + 10);
+                } else {
+                    ctx.moveTo(x, y); ctx.lineTo(x + 15, y - 15); ctx.lineTo(x + 25, y + 5);
+                    ctx.lineTo(x - 5, y + 20);
+                }
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#a1a1aa';
+                ctx.beginPath();
+                if(subType === 1) { ctx.moveTo(x, y); ctx.lineTo(x + 20, y-10); ctx.lineTo(x-5, y-5);
+                } else { ctx.moveTo(x, y); ctx.lineTo(x+15, y-15); ctx.lineTo(x+5, y-5); }
+                ctx.closePath(); ctx.fill();
+            },
+            drawPlant: (ctx, x, y, subType) => {
+                ctx.fillStyle = subType === 1 ? '#166534' : '#15803d';
+                ctx.strokeStyle = '#14532d'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(x, y);
+                if (subType < 3) {
+                    ctx.lineTo(x, y - 20); ctx.stroke();
+                    ctx.fillStyle = subType === 1 ? '#4ade80' : '#86efac';
+                    ctx.beginPath(); ctx.arc(x, y - 25, 10, 0, Math.PI * 2); ctx.fill();
+                } else {
+                    ctx.bezierCurveTo(x-10, y-15, x+10, y-25, x, y-30); ctx.stroke();
+                    ctx.fillStyle = subType === 3 ? '#22c55e' : '#10b981';
+                    ctx.beginPath(); ctx.fillRect(x-4, y-35, 8, 8);
+                }
+                ctx.closePath();
+            },
             drawShrub: (ctx, x, y) => { ctx.fillStyle = '#4d7c0f'; ctx.beginPath(); ctx.arc(x, y, 8, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#a3e635'; ctx.beginPath(); ctx.arc(x-4, y, 4, Math.PI, 0); ctx.arc(x+4, y, 4, Math.PI, 0); ctx.fill(); },
-            drawResourceNode: (ctx, node) => { ctx.fillStyle = materials[node.material].color; ctx.beginPath(); ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2); ctx.fill(); const hp = node.health / node.maxHealth; if(hp < 1){ ctx.fillStyle = '#4B5563'; ctx.fillRect(node.x - node.radius, node.y - node.radius - 8, node.radius * 2, 4); ctx.fillStyle = '#FBBF24'; ctx.fillRect(node.x - node.radius, node.y - node.radius - 8, node.radius * 2 * hp, 4); } },
-            drawMaterial: (ctx, x, y, type) => { ctx.fillStyle = materials[type].color; ctx.fillRect(x-5, y-5, 10, 10); ctx.strokeStyle = '#111827'; ctx.lineWidth = 2; ctx.strokeRect(x-5, y-5, 10, 10); },
+            drawCrystalResource: (ctx, x, y, radius, color) => {
+                ctx.fillStyle = color; ctx.beginPath();
+                ctx.moveTo(x, y - radius); ctx.lineTo(x + radius, y); ctx.lineTo(x + radius / 2, y + radius);
+                ctx.lineTo(x - radius / 2, y + radius); ctx.lineTo(x - radius, y);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = `rgba(255, 255, 255, 0.5)`; ctx.beginPath();
+                ctx.moveTo(x, y - radius); ctx.lineTo(x + radius * 0.4, y - radius * 0.2); ctx.lineTo(x, y - radius * 0.5);
+                ctx.closePath(); ctx.fill();
+            },
+            drawMushroomResource: (ctx, x, y, radius, color) => {
+                ctx.fillStyle = '#964B00'; ctx.fillRect(x - radius * 0.3, y, radius * 0.6, radius * 1.2);
+                ctx.fillStyle = color; ctx.beginPath();
+                ctx.arc(x, y, radius, Math.PI, Math.PI * 2, false); ctx.fill();
+                ctx.fillStyle = '#f0f0f0'; ctx.beginPath();
+                ctx.arc(x - radius * 0.4, y - radius * 0.4, radius * 0.15, 0, Math.PI * 2);
+                ctx.arc(x + radius * 0.3, y - radius * 0.5, radius * 0.1, 0, Math.PI * 2);
+                ctx.fill();
+            },
+            drawChitinShard: (ctx, x, y, color) => {
+                ctx.fillStyle = color; ctx.beginPath();
+                ctx.moveTo(x, y - 8); ctx.lineTo(x + 7, y + 2); ctx.lineTo(x - 2, y + 8); ctx.lineTo(x - 7, y - 2);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = `rgba(255, 255, 255, 0.3)`; ctx.beginPath();
+                ctx.moveTo(x, y - 8); ctx.lineTo(x + 2, y - 5); ctx.lineTo(x, y - 6);
+                ctx.closePath(); ctx.fill();
+            },
+            drawResourceNode: (ctx, node) => {
+                if (node.material === 'plant_fiber' && activeMap && activeMap.id === 'verdant_prime') {
+                    sprites.drawMushroomResource(ctx, node.x, node.y, node.radius, materials[node.material].color);
+                } else if (node.material === 'moondust') {
+                    sprites.drawCrystalResource(ctx, node.x, node.y, node.radius, materials[node.material].color);
+                } else {
+                    ctx.fillStyle = materials[node.material].color;
+                    ctx.beginPath(); ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2); ctx.fill();
+                }
+                const hp = node.health / node.maxHealth;
+                if(hp < 1){ ctx.fillStyle = '#4B5563'; ctx.fillRect(node.x - node.radius, node.y - node.radius - 8, node.radius * 2, 4); ctx.fillStyle = '#FBBF24'; ctx.fillRect(node.x - node.radius, node.y - node.radius - 8, node.radius * 2 * hp, 4); }
+            },
+            drawMaterial: (ctx, x, y, type) => {
+                if (type === 'alien_chitin') {
+                    sprites.drawChitinShard(ctx, x, y, materials[type].color);
+                } else {
+                    ctx.fillStyle = materials[type].color; ctx.fillRect(x-5, y-5, 10, 10); ctx.strokeStyle = '#111827'; ctx.lineWidth = 2; ctx.strokeRect(x-5, y-5, 10, 10);
+                }
+            },
         };
         
+        function setupStars(count = 100) {
+            stars.length = 0;
+            const gameContainer = document.getElementById('game-container');
+            if (!gameContainer) return;
+            const rect = gameContainer.getBoundingClientRect();
+            for (let i = 0; i < count; i++) {
+                stars.push({
+                    x: Math.random() * rect.width,
+                    y: Math.random() * rect.height,
+                    size: Math.random() * 1.5 + 0.5,
+                    speed: (Math.random() * 15 + 5)
+                });
+            }
+        }
+        function updateStars(deltaTime) {
+            stars.forEach(star => {
+                star.x -= star.speed * deltaTime;
+                if (star.x < 0) {
+                    star.x = canvas.width;
+                    star.y = Math.random() * canvas.height;
+                }
+            });
+        }
+
         function setCanvasDimensions() {
             const rect = document.getElementById('game-container').getBoundingClientRect();
             canvas.width = rect.width; canvas.height = rect.height;
             starbaseHub.rect = { x: canvas.width*0.25, y: canvas.height*0.1, width: canvas.width*0.5, height: canvas.height*0.8 };
             const room = starbaseHub.rect;
-            // Set position for the terminal
             starbaseHub.terminal.x = room.x + room.width / 2; starbaseHub.terminal.y = room.y + 50; 
             starbaseHub.armory.x = room.x + room.width - 50; starbaseHub.armory.y = room.y + room.height / 2 + 20;
             starbaseHub.workshop.x = room.x + 60; starbaseHub.workshop.y = room.y + room.height / 2 + 20;
             starbaseHub.database.x = room.x + room.width / 2; starbaseHub.database.y = room.y + room.height - 50;
+            starbaseHub.infirmary.x = room.x + room.width - 60; starbaseHub.infirmary.y = room.y + room.height - 50;
             starbaseHub.table.x = room.x + 80; starbaseHub.table.y = room.y + room.height - 50;
             starbaseHub.bed.x = room.x + 70; starbaseHub.bed.y = room.y + 50;
             starbaseHub.kitchen.x = room.x + room.width - 80; starbaseHub.kitchen.y = room.y + 50;
-            // Re-added terminal to the interactables list
-            starbaseHub.interactables = [starbaseHub.terminal, starbaseHub.workshop, starbaseHub.armory, starbaseHub.database, starbaseHub.bed, starbaseHub.kitchen];
-            baseScenery.length = 0;
-            for(let i=0; i < 20; i++) baseScenery.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, subType: Math.ceil(Math.random()*2) });
+            starbaseHub.interactables = [starbaseHub.terminal, starbaseHub.workshop, starbaseHub.armory, starbaseHub.database, starbaseHub.infirmary, starbaseHub.bed, starbaseHub.kitchen];
+            setupStars();
         }
 
         function createTextures() { 
-            // Helper function to create a textured pattern
             function createPattern(baseColor, detailColors, detailCount = 30, detailSize = 2) { 
                 const tex = document.createElement('canvas'); 
                 tex.width = 64; tex.height = 64; 
@@ -399,28 +629,78 @@
             textures.verdant_prime = createPattern('#2a3d34', ['#3a5447', '#1f2e26'], 50); 
         };
         
-        // Function to show/hide and populate overlay elements
         function showOverlay(overlayId, content) {
-            document.querySelectorAll('.overlay').forEach(o => o.classList.add('overlay-hidden')); // Hide all
+            document.querySelectorAll('.overlay').forEach(o => o.classList.add('overlay-hidden'));
             const el = document.getElementById(overlayId);
             if(el) {
-                if(content) el.innerHTML = content; // Set content if provided
-                el.classList.remove('overlay-hidden'); // Show target overlay
+                if(content) el.innerHTML = content;
+                el.classList.remove('overlay-hidden');
             }
+        }
+
+        function showMessageBox(message) {
+            const messageBox = document.getElementById('messageBox');
+            document.getElementById('messageBoxText').textContent = message;
+            messageBox.style.display = 'block';
         }
         
         function handleInteraction(id) {
             if (id === 'deploy') { showMapSelection(); }
             else if (id === 'workshop' || id === 'armory') { openStationMenu(id); }
+            else if (id === 'infirmary') { useInfirmary(); }
+            else if (id === 'bed') { useBed(); }
             else { console.log(`Interacted with ${id}`); }
         }
+
+        function useBed() {
+            if (player.health < player.maxHealth) {
+                player.health = player.maxHealth;
+                player.daysPassed++;
+                showMessageBox("You slept and feel fully rested! Day " + player.daysPassed);
+                drawHUD();
+            } else {
+                showMessageBox("You're not tired. Health is already full!");
+            }
+        }
         
-        // Global functions for HTML buttons
+        const INFIRMARY_HEAL_COST = { plant_fiber: 25 };
+        function useInfirmary() {
+            const currentTime = performance.now() / 1000;
+            const cooldownDuration = 10;
+            if (currentTime - player.infirmaryLastUsed < cooldownDuration) {
+                const remainingTime = Math.ceil(cooldownDuration - (currentTime - player.infirmaryLastUsed));
+                showMessageBox(`Infirmary on cooldown. Try again in ${remainingTime} seconds.`);
+                return;
+            }
+            let canAfford = true;
+            let costString = '';
+            for (const mat in INFIRMARY_HEAL_COST) {
+                if (player.inventory[mat] < INFIRMARY_HEAL_COST[mat]) { canAfford = false; }
+                costString += `${INFIRMARY_HEAL_COST[mat]} ${materials[mat].name} `;
+            }
+            if (player.health < player.maxHealth) {
+                if (canAfford) {
+                    for (const mat in INFIRMARY_HEAL_COST) { player.inventory[mat] -= INFIRMARY_HEAL_COST[mat]; }
+                    player.health = player.maxHealth;
+                    player.infirmaryLastUsed = currentTime;
+                    showMessageBox(`Health fully restored for ${costString}! Infirmary on cooldown.`);
+                    drawHUD();
+                } else {
+                    showMessageBox(`Not enough resources to use Infirmary. Requires: ${costString}`);
+                }
+            } else {
+                showMessageBox("Health is already full.");
+            }
+        }
+        
         window.returnToHub = () => { 
             if (gameLoopId) cancelAnimationFrame(gameLoopId); 
             gameState = 'starbase_hub'; 
             setupStarbaseHub(); 
-            showOverlay(null); // Hide all overlays
+            player.isDashing = false;
+            showOverlay(null);
+            document.getElementById('autoShootToggle').style.display = 'none';
+            document.getElementById('abortMissionButton').style.display = 'none';
             lastTime = performance.now(); 
             gameLoopId = requestAnimationFrame(gameLoop); 
         };
@@ -428,11 +708,14 @@
             activeMap = maps.find(m => m.id === mapId); 
             resetForMission(); 
             gameState = 'playing'; 
-            showOverlay(null); // Hide all overlays
+            showOverlay(null);
         };
 
-        // Player setup and permanent upgrades
-        function setupStarbaseHub() { player.x = canvas.width / 2; player.y = starbaseHub.rect.y + starbaseHub.rect.height - 50; player.stamina = player.maxStamina; }
+        function setupStarbaseHub() { 
+            player.x = starbaseHub.rect.x + starbaseHub.rect.width / 2;
+            player.y = starbaseHub.rect.y + starbaseHub.rect.height / 2;
+            player.stamina = player.maxStamina; 
+        }
         
         function showMapSelection() { 
             gameState = 'mapSelection'; 
@@ -445,26 +728,40 @@
             Object.assign(player, { 
                 width: 16, height: 24, speed: 200, staminaRegen: 25, dashCost: 40, isDashing: false, dashCooldown: 0, dashDuration: 0.15, dashSpeed: 600, level: 1, xp: 0, xpToNextLevel: 100, xpGainMultiplier: 1.0, fireCooldown: 0, animTimer: 0, animFrame: 0, isMoving: false, 
                 inventory: { moondust: 100, alien_chitin: 100, plant_fiber: 100 }, 
-                upgrades: { suit_hp: 0, suit_regen: 0, suit_stamina: 0, gun_dmg: 0, gun_rate: 0, gun_proj_speed: 0 } // Initialize new upgrade level
+                upgrades: { suit_hp: 0, suit_regen: 0, suit_stamina: 0, gun_dmg: 0, gun_rate: 0, gun_proj_speed: 0 },
+                currentWeaponId: 'blaster', 
+                ownedWeapons: { 'blaster': true },
+                autoShoot: false,
+                infirmaryLastUsed: -Infinity,
+                daysPassed: 1,
             }); 
-            player.baseProjectileSpeed = 300; // Base projectile speed
+            player.baseMaxHealth = 100 + player.upgrades.suit_hp * 10;
+            player.baseMaxStamina = 100 + player.upgrades.suit_stamina * 10;
+            player.health = player.baseMaxHealth;
+            player.maxHealth = player.baseMaxHealth;
+            player.stamina = player.baseMaxStamina;
+            player.maxStamina = player.baseMaxStamina;
             applyPermanentUpgrades(); 
         }
         
         function applyPermanentUpgrades() { 
-            player.baseMaxHealth = 100 + player.upgrades.suit_hp * 10; 
+            player.maxHealth = player.baseMaxHealth + player.upgrades.suit_hp * 10; 
             player.healthRegen = 0 + player.upgrades.suit_regen * 0.1; 
-            player.baseMaxStamina = 100 + player.upgrades.suit_stamina * 10; 
-            player.baseAttackPower = 10 + player.upgrades.gun_dmg * 1; 
-            player.baseFireRate = 1 * (1 + player.upgrades.gun_rate * 0.05); 
-            player.projectileSpeed = player.baseProjectileSpeed + player.upgrades.gun_proj_speed * 10; // Apply projectile speed upgrade
+            player.maxStamina = player.baseMaxStamina + player.upgrades.suit_stamina * 10; 
+            const equippedWeapon = weapons[player.currentWeaponId];
+            player.attackPower = equippedWeapon.baseDamage + player.upgrades.gun_dmg * 1; 
+            player.fireRate = equippedWeapon.baseFireRate * (1 + player.upgrades.gun_rate * 0.05); 
+            player.projectileSpeed = equippedWeapon.baseProjectileSpeed + player.upgrades.gun_proj_speed * 10; 
+            player.projectilesPerShot = equippedWeapon.projectilesPerShot || 1;
+            player.spreadAngle = equippedWeapon.spreadAngle || 0;
         }
 
         function resetForMission() {
             applyPermanentUpgrades();
-            player.maxHealth = player.baseMaxHealth; player.health = player.maxHealth; 
-            player.maxStamina = player.baseMaxStamina; player.stamina = player.maxStamina;
-            player.attackPower = player.baseAttackPower; player.fireRate = player.baseFireRate;
+            if (gameState === 'gameOver') { 
+                player.health = player.maxHealth;
+                player.stamina = player.maxStamina;
+            }
             player.x = canvas.width / 2; player.y = canvas.height / 2; timer = gameDuration;
             [enemies, playerProjectiles, enemyProjectiles, shards, materialDrops, terrain].forEach(arr => arr.length = 0);
             const terrainCount = 25;
@@ -478,31 +775,32 @@
         
         function updatePlayer(deltaTime) {
             let nextX = player.x; let nextY = player.y;
-            player.dashCooldown -= deltaTime; player.fireCooldown -= deltaTime;
+            if (gameState === 'playing') {
+                player.dashCooldown -= deltaTime;
+                if (keys[' '] && !player.isDashing && player.stamina >= player.dashCost && player.dashCooldown <= 0) {
+                    startDash();
+                }
+            }
+            player.fireCooldown -= deltaTime;
             player.stamina = Math.min(player.maxStamina, player.stamina + player.staminaRegen * deltaTime);
             if(gameState === 'playing') player.health = Math.min(player.maxHealth, player.health + player.healthRegen * deltaTime);
-
             let moveDirection = { x: 0, y: 0 };
             if (keys.a) moveDirection.x -= 1; if (keys.d) moveDirection.x += 1;
             if (keys.w) moveDirection.y -= 1; if (keys.s) moveDirection.y += 1;
             player.isMoving = (moveDirection.x !== 0 || moveDirection.y !== 0);
-
             if(player.isMoving) {
                 player.animTimer += deltaTime;
                 if(player.animTimer > 0.2) { player.animTimer = 0; player.animFrame = (player.animFrame + 1) % 2; }
                 const currentSpeed = player.isDashing ? player.dashSpeed : player.speed;
                 const magnitude = Math.sqrt(moveDirection.x**2 + moveDirection.y**2);
-                if (magnitude > 0) { // Normalize movement vector
+                if (magnitude > 0) {
                     nextX += (moveDirection.x / magnitude) * currentSpeed * deltaTime;
                     nextY += (moveDirection.y / magnitude) * currentSpeed * deltaTime;
                 }
             } else { player.animFrame = 0; }
-            
-            // Collision detection with terrain
             let collided = false;
             terrain.forEach(t => { 
                 if(t.type === 'rock' || t.type === 'plant') {
-                    // Simple circle collision
                     if (Math.hypot(nextX - t.x, nextY - t.y) < t.radius + player.width / 2) { 
                         collided = true; 
                     } 
@@ -512,8 +810,6 @@
                 player.x = nextX; 
                 player.y = nextY; 
             }
-            
-            // Boundary checks
             const bounds = (gameState === 'starbase_hub' || gameState === 'station_menu') ? starbaseHub.rect : {x: 0, y: 0, width: canvas.width, height: canvas.height};
             player.x = Math.max(bounds.x + player.width/2, Math.min(bounds.x + bounds.width - player.width/2, player.x));
             player.y = Math.max(bounds.y + player.height/2, Math.min(bounds.y + bounds.height - player.height/2, player.y));
@@ -521,6 +817,7 @@
         
         function updateHub(deltaTime) {
             updatePlayer(deltaTime);
+            updateStars(deltaTime);
             interactionTarget = null;
             for (const item of starbaseHub.interactables) {
                 if(Math.hypot(player.x - item.x, player.y - item.y) < starbaseHub.interactionRadius) {
@@ -560,42 +857,66 @@
                                 player.health -= enemy.attackDamage;
                                 if (player.health <= 0) { gameState = 'gameOver';}
                             } 
-                            // Reset to moving after a short attack animation/delay
                             setTimeout(() => { if (enemy) enemy.state = 'moving'; }, 500); 
                         }
                     }
                 } else if (enemy.type === 'spitter') {
                     enemy.fireCooldown -= deltaTime;
-                    if (distToPlayer > enemy.preferredDist) { enemy.x += Math.cos(angle) * enemy.speed * deltaTime; enemy.y += Math.sin(angle) * enemy.speed * deltaTime; }
+                    if (distToPlayer > enemy.preferredDist) { enemy.x += Math.cos(angle) * enemy.speed * deltaTime; enemy.y -= Math.sin(angle) * enemy.speed * deltaTime; }
                     else { enemy.x -= Math.cos(angle) * enemy.speed * 0.5 * deltaTime; enemy.y -= Math.sin(angle) * enemy.speed * 0.5 * deltaTime; }
                     if (enemy.fireCooldown <= 0) { fireEnemyProjectile(enemy); }
+                } else if (enemy.type === 'worm') {
+                    enemy.x += Math.cos(angle) * enemy.speed * deltaTime;
+                    enemy.y += Math.sin(angle) * enemy.speed * deltaTime;
+                    if (distToPlayer < enemy.size + player.width / 2 && enemy.attackCooldown <= 0) {
+                        player.health -= enemy.attackDamage;
+                        enemy.attackCooldown = 1 / enemy.attackRate;
+                        if (player.health <= 0) { gameState = 'gameOver';}
+                    }
+                    enemy.attackCooldown -= deltaTime;
                 }
             });
         }
         function createEnemy() { 
-            const spitterChance = timer < 90 ? 0.35 : 0.15; // Increased chance for spitters later
-            const type = Math.random() > (1 - spitterChance) ? 'spitter' : 'charger'; 
+            let type;
+            const enemyRoll = Math.random();
+            if (activeMap.id === 'verdant_prime') {
+                if (enemyRoll < 0.35) { type = 'spitter'; } 
+                else if (enemyRoll < 0.70) { type = 'worm'; } 
+                else { type = 'charger'; }
+            } else {
+                const spitterChance = timer < 90 ? 0.35 : 0.15;
+                type = Math.random() > (1 - spitterChance) ? 'spitter' : 'charger'; 
+            }
+            
             let x, y; 
-            const size = type === 'charger' ? 16 : 12; 
-            // Spawn enemies off-screen
-            const edge = Math.floor(Math.random() * 4); 
-            if (edge === 0) { x = Math.random() * canvas.width; y = -size; } // Top
-            else if (edge === 1) { x = canvas.width + size; y = Math.random() * canvas.height; } // Right
-            else if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height + size; } // Bottom
-            else { x = -size; y = Math.random() * canvas.height; } // Left
+            let size, health, xpValue, speed;
+            let enemySpecificProps = {};
 
-            let newEnemy = { x, y, size, health: type === 'charger' ? 20 : 30, maxHealth: type === 'charger' ? 20 : 30, xpValue: type === 'charger' ? 20 : 30, type: type }; 
-            if (type === 'charger') { 
-                Object.assign(newEnemy, { speed: 50 + Math.random() * 50, state: 'moving', chargeTime: 1.5, chargeTimer: 0, attackRadius: size * 4, attackDamage: 10, }); 
-            } else { 
-                Object.assign(newEnemy, { speed: 40 + Math.random() * 30, state: 'moving', preferredDist: 250 + Math.random() * 100, fireCooldown: 1, fireRate: 0.5, }); 
-            } 
+            if (type === 'charger') {
+                size = 16; health = 10; xpValue = 20; speed = 50 + Math.random() * 50;
+                Object.assign(enemySpecificProps, { state: 'moving', chargeTime: 1.5, chargeTimer: 0, attackRadius: size * 4, attackDamage: 10 });
+            } else if (type === 'spitter') {
+                size = 12; health = 20; xpValue = 30; speed = 40 + Math.random() * 30;
+                Object.assign(enemySpecificProps, { state: 'moving', preferredDist: 250 + Math.random() * 100, fireCooldown: 1, fireRate: 0.5 });
+            } else if (type === 'worm') {
+                size = 18; health = 30; xpValue = 40; speed = 30 + Math.random() * 20;
+                Object.assign(enemySpecificProps, { attackDamage: 15, attackCooldown: 1, attackRate: 1 });
+            }
+
+            const edge = Math.floor(Math.random() * 4); 
+            if (edge === 0) { x = Math.random() * canvas.width; y = -size; }
+            else if (edge === 1) { x = canvas.width + size; y = Math.random() * canvas.height; }
+            else if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height + size; }
+            else { x = -size; y = Math.random() * canvas.height; }
+
+            let newEnemy = { x, y, size, health, maxHealth: health, xpValue, type, speed, ...enemySpecificProps }; 
             enemies.push(newEnemy); 
         };
         function fireEnemyProjectile(enemy) { 
             enemy.fireCooldown = 1 / enemy.fireRate; 
             const baseAngle = Math.atan2(player.y - enemy.y, player.x - enemy.x); 
-            for(let i = -1; i <= 1; i++) { // Fires 3 projectiles in a small arc
+            for(let i = -1; i <= 1; i++) {
                 const angle = baseAngle + i * 0.2; 
                 enemyProjectiles.push({ x: enemy.x, y: enemy.y, radius: 5, color: '#A3E635', speed: 150, vx: Math.cos(angle), vy: Math.sin(angle), damage: 8, lifespan: 1.5 }); 
             } 
@@ -607,7 +928,17 @@
         function fireProjectile() { 
             player.fireCooldown = 1 / player.fireRate; 
             const angle = Math.atan2(mouse.y - player.y, mouse.x - player.x); 
-            playerProjectiles.push({ x: player.x, y: player.y, radius: 4, color: '#FBBF24', speed: player.projectileSpeed, vx: Math.cos(angle), vy: Math.sin(angle), damage: player.attackPower }); 
+            for (let i = 0; i < player.projectilesPerShot; i++) {
+                const currentAngle = angle + (i - (player.projectilesPerShot - 1) / 2) * player.spreadAngle;
+                playerProjectiles.push({ 
+                    x: player.x, y: player.y, 
+                    radius: (player.currentWeaponId === 'bfg' ? 8 : 4),
+                    color: (player.currentWeaponId === 'phaser' ? '#A78BFA' : '#FBBF24'),
+                    speed: player.projectileSpeed, 
+                    vx: Math.cos(currentAngle), vy: Math.sin(currentAngle), 
+                    damage: player.attackPower 
+                }); 
+            }
         };
         
         function updatePlaying(deltaTime) {
@@ -615,7 +946,6 @@
             timer -= deltaTime; 
             if (timer <= 0) { 
                 gameState = 'victory'; 
-                // Set the game state to 'victory' and let the gameLoop handle the overlay display
                 return; 
             }
             updatePlayer(deltaTime);
@@ -637,40 +967,37 @@
                 p.x += p.vx * p.speed * deltaTime; p.y += p.vy * p.speed * deltaTime;
                 if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) { playerProjectiles.splice(i, 1); continue; }
                 let hit = false;
-                // Collision with resource nodes (terrain)
-                for (let t_idx = terrain.length - 1; t_idx >= 0; t_idx--) { // Iterate backwards for safe removal
+                for (let t_idx = terrain.length - 1; t_idx >= 0; t_idx--) {
                     const t = terrain[t_idx];
-                    if(t.type !== 'resource_node') continue; // Only interact with resource nodes
+                    if(t.type !== 'resource_node') continue;
                     if (Math.hypot(p.x - t.x, p.y - t.y) < t.radius + p.radius) { 
                         t.health -= p.damage; 
                         if (t.health <= 0) { 
                             createMaterialDrop(t.x, t.y, t.material); 
-                            terrain.splice(t_idx, 1); // Remove destroyed node
+                            terrain.splice(t_idx, 1);
                         } 
-                        playerProjectiles.splice(i, 1); // Remove projectile
+                        playerProjectiles.splice(i, 1);
                         hit = true; 
-                        break; // Projectile hit something, move to next projectile
+                        break;
                     }
                 }
-                if (hit) continue; // If projectile hit terrain, skip enemy collision check for this projectile
+                if (hit) continue;
 
-                // Collision with enemies
-                for (let j = enemies.length - 1; j >= 0; j--) { // Iterate backwards for safe removal
+                for (let j = enemies.length - 1; j >= 0; j--) {
                     const e = enemies[j];
-                    if (Math.hypot(p.x - e.x, p.y - e.y) < e.size) { // Simple circle collision
+                    if (Math.hypot(p.x - e.x, p.y - e.y) < e.size) {
                         e.health -= p.damage; 
-                        playerProjectiles.splice(i, 1); // Remove projectile
+                        playerProjectiles.splice(i, 1);
                         if (e.health <= 0) {
                             createShard(e.x, e.y, e.xpValue);
                             if (Math.random() < 0.3) createMaterialDrop(e.x, e.y, 'alien_chitin');
-                            enemies.splice(j,1); // Remove defeated enemy
+                            enemies.splice(j,1);
                         } 
-                        break; // Projectile hit an enemy, move to next projectile
+                        break;
                     }
                 }
             }
             
-            // Pickup shards and materials
             for (let i = shards.length - 1; i >= 0; i--) { 
                 if (Math.hypot(player.x - shards[i].x, player.y - shards[i].y) < player.width * 4) { 
                     gainXp(shards[i].value); 
@@ -699,7 +1026,6 @@
         
         function presentUpgradeChoices() { 
             gameState = 'paused'; 
-            // Get 3 unique random power-ups
             const choices = [...powerUps].sort(() => 0.5 - Math.random()).slice(0, 3); 
             let cardsHTML = `<div class="w-full flex justify-center">${choices.map(upgrade => `
                 <div class="upgrade-card" onclick="window.selectUpgrade('${upgrade.id}')">
@@ -715,44 +1041,166 @@
             gameState = 'playing'; 
         }
 
-        // Station Menu (Workshop/Armory) logic
         function openStationMenu(stationId) {
             gameState = 'station_menu';
             activeStation = stationId;
-            selectedUpgradeId = null; // Clear any previously selected upgrade
+            selectedUpgradeId = null;
+            selectedWeaponId = null;
             
             const stationMenuTitleEl = document.getElementById('stationMenuTitle');
-            const upgradeIconsContainerEl = document.getElementById('upgradeIconsContainer');
+            const upgradeDetailsBoxEl = document.getElementById('upgradeDetailsBox');
+            
+            stationMenuTitleEl.textContent = `${stationId.charAt(0).toUpperCase() + stationId.slice(1)}`;
+            upgradeDetailsBoxEl.style.display = 'none';
+
+            if (stationId === 'armory') {
+                document.querySelector('.station-tabs').style.display = 'flex';
+                document.querySelector('.station-tab[data-tab="weapons"]').click();
+            } else {
+                document.querySelector('.station-tabs').style.display = 'none';
+                document.getElementById('upgradesTabContent').classList.add('active'); 
+                document.getElementById('weaponsTabContent').classList.remove('active'); 
+                populateUpgradesTab(permanentUpgrades[stationId]);
+            }
+            
+            showOverlay('stationMenu');
+        }
+
+        document.querySelectorAll('.station-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                document.querySelectorAll('.station-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                e.target.classList.add('active');
+                const targetTab = e.target.dataset.tab;
+                document.getElementById(targetTab + 'TabContent').classList.add('active');
+
+                selectedWeaponId = null;
+                selectedUpgradeId = null;
+                document.getElementById('upgradeDetailsBox').style.display = 'none';
+
+                if (targetTab === 'weapons') { populateWeaponsTab(); } 
+                else if (targetTab === 'upgrades') { populateUpgradesTab(permanentUpgrades[activeStation]); }
+            });
+        });
+
+        function populateWeaponsTab() {
+            const weaponIconsContainerEl = document.getElementById('weaponIconsContainer');
+            weaponIconsContainerEl.innerHTML = '';
+            Object.values(weapons).forEach(weapon => {
+                const isEquipped = player.currentWeaponId === weapon.id;
+                const iconButton = document.createElement('div');
+                iconButton.className = `upgrade-icon-button ${isEquipped ? 'equipped' : ''}`;
+                iconButton.innerHTML = `${weapon.icon}<br><span class="icon-text">${weapon.name}</span>`;
+                iconButton.onclick = () => window.displayWeaponDetails(weapon.id);
+                weaponIconsContainerEl.appendChild(iconButton);
+            });
+        }
+
+        window.displayWeaponDetails = (weaponId) => {
+            selectedWeaponId = weaponId;
+            selectedUpgradeId = null;
+            const weapon = weapons[weaponId];
+            if (!weapon) return;
+
+            const isOwned = player.ownedWeapons[weapon.id];
+            const isEquipped = player.currentWeaponId === weapon.id;
+            const cost = weapon.cost;
+            let canAfford = true;
+            let costHtml = '';
+            
+            if (!isOwned) {
+                for(const mat in cost) { 
+                    if(player.inventory[mat] < cost[mat]) canAfford = false; 
+                    costHtml += `<span style="color:${materials[mat].color};">${cost[mat]} ${materials[mat].name}</span> `;
+                }
+            }
+
+            const detailTitleEl = document.getElementById('detailTitle');
+            const detailDescEl = document.getElementById('detailDesc');
+            const detailLevelEl = document.getElementById('detailLevel');
+            const detailCostEl = document.getElementById('detailCost');
+            const detailBuyButtonEl = document.getElementById('detailBuyButton');
             const upgradeDetailsBoxEl = document.getElementById('upgradeDetailsBox');
 
-            stationMenuTitleEl.textContent = `${stationId.charAt(0).toUpperCase() + stationId.slice(1)} Upgrades`;
-            upgradeIconsContainerEl.innerHTML = ''; // Clear previous icons
-            upgradeDetailsBoxEl.style.display = 'none'; // Hide details box initially
+            detailTitleEl.textContent = weapon.name;
+            detailDescEl.textContent = weapon.description;
+            
+            if (isEquipped) {
+                detailLevelEl.textContent = 'Status: EQUIPPED';
+                detailCostEl.innerHTML = '';
+                detailBuyButtonEl.textContent = 'EQUIPPED';
+                detailBuyButtonEl.disabled = true;
+            } else if (isOwned) {
+                detailLevelEl.textContent = 'Status: OWNED';
+                detailCostEl.innerHTML = '';
+                detailBuyButtonEl.textContent = 'Equip';
+                detailBuyButtonEl.disabled = false;
+                detailBuyButtonEl.onclick = () => window.equipWeapon(weapon.id);
+            } else {
+                detailLevelEl.textContent = 'Status: NOT OWNED';
+                detailCostEl.innerHTML = `Cost: ${costHtml}`;
+                detailBuyButtonEl.textContent = 'Buy';
+                detailBuyButtonEl.disabled = !canAfford;
+                detailBuyButtonEl.onclick = () => window.buyWeapon(weapon.id);
+            }
 
-            const upgradesForStation = permanentUpgrades[stationId];
+            detailBuyButtonEl.className = `game-button mt-4 w-full ${detailBuyButtonEl.disabled ? 'disabled' : ''}`;
+            upgradeDetailsBoxEl.style.display = 'flex';
 
+            document.querySelectorAll('.upgrade-icon-button').forEach(btn => btn.classList.remove('selected'));
+            document.querySelectorAll('#weaponIconsContainer .upgrade-icon-button').forEach(btn => {
+                if (btn.innerHTML.includes(weapon.name)) btn.classList.add('selected');
+            });
+        };
+
+        window.equipWeapon = (weaponId) => {
+            if (player.ownedWeapons[weaponId] && player.currentWeaponId !== weaponId) {
+                player.currentWeaponId = weaponId;
+                applyPermanentUpgrades();
+                populateWeaponsTab();
+                displayWeaponDetails(weaponId);
+                showMessageBox(`${weapons[weaponId].name} equipped!`);
+            }
+        };
+
+        window.buyWeapon = (weaponId) => {
+            const weapon = weapons[weaponId];
+            if (player.ownedWeapons[weaponId]) { return; }
+            const cost = weapon.cost;
+            let canAfford = true;
+            for(const mat in cost) { if(player.inventory[mat] < cost[mat]) { canAfford = false; break; } }
+            if(canAfford) {
+                for(const mat in cost) { player.inventory[mat] -= cost[mat]; }
+                player.ownedWeapons[weaponId] = true;
+                updateMaterialHUD();
+                populateWeaponsTab();
+                displayWeaponDetails(weaponId);
+                showMessageBox(`Successfully purchased ${weapon.name}!`);
+            } else {
+                showMessageBox("Cannot afford this weapon!");
+            }
+        };
+
+        function populateUpgradesTab(upgradesForStation) {
+            const upgradeIconsContainerEl = document.getElementById('upgradeIconsContainer');
+            upgradeIconsContainerEl.innerHTML = '';
             upgradesForStation.forEach(upgrade => {
                 const currentLevel = player.upgrades[upgrade.id];
                 const isMaxLevel = currentLevel >= upgrade.maxLevel;
                 const cost = upgrade.cost(currentLevel);
                 let canAfford = true;
-                for(const mat in cost) { 
-                    if(player.inventory[mat] < cost[mat]) canAfford = false; 
-                }
-
+                for(const mat in cost) { if(player.inventory[mat] < cost[mat]) canAfford = false; }
                 const iconButton = document.createElement('div');
-                iconButton.className = `upgrade-icon-button ${isMaxLevel ? 'is-max' : ''} ${canAfford ? 'can-afford' : ''}`;
+                iconButton.className = `upgrade-icon-button ${isMaxLevel ? 'is-max' : ''} ${canAfford && !isMaxLevel ? 'can-afford' : ''}`;
                 iconButton.innerHTML = `${upgrade.icon}<br><span class="icon-text">${upgrade.name}</span>`;
                 iconButton.onclick = () => window.displayUpgradeDetails(upgrade.id);
                 upgradeIconsContainerEl.appendChild(iconButton);
             });
-
-            showOverlay('stationMenu');
         }
 
-        // Function to display upgrade details in the bottom box
         window.displayUpgradeDetails = (upgradeId) => {
-            selectedUpgradeId = upgradeId; // Set the currently selected upgrade
+            selectedUpgradeId = upgradeId;
+            selectedWeaponId = null;
             const upgrade = permanentUpgrades[activeStation].find(u => u.id === upgradeId);
             if (!upgrade) return;
 
@@ -766,7 +1214,6 @@
                 if(player.inventory[mat] < cost[mat]) canAfford = false; 
                 costHtml += `<span style="color:${materials[mat].color};">${cost[mat]} ${materials[mat].name}</span> `;
             }
-
             const detailTitleEl = document.getElementById('detailTitle');
             const detailDescEl = document.getElementById('detailDesc');
             const detailLevelEl = document.getElementById('detailLevel');
@@ -778,89 +1225,47 @@
             detailDescEl.textContent = upgrade.desc;
             detailLevelEl.textContent = `Level: ${currentLevel}/${upgrade.maxLevel}`;
             detailCostEl.innerHTML = isMaxLevel ? 'Max Level Reached' : `Cost: ${costHtml}`;
-
             detailBuyButtonEl.textContent = isMaxLevel ? 'MAX LEVEL' : 'UPGRADE';
-            detailBuyButtonEl.className = `game-button mt-4 w-full ${canAfford && !isMaxLevel ? '' : 'disabled'}`;
             detailBuyButtonEl.disabled = isMaxLevel || !canAfford;
             detailBuyButtonEl.onclick = () => window.buyUpgrade(upgrade.id);
+            detailBuyButtonEl.className = `game-button mt-4 w-full ${detailBuyButtonEl.disabled ? 'disabled' : ''}`;
+            upgradeDetailsBoxEl.style.display = 'flex';
 
-            upgradeDetailsBoxEl.style.display = 'flex'; // Show the details box
-
-            // Highlight selected icon
-            document.querySelectorAll('.upgrade-icon-button').forEach(btn => {
-                btn.classList.remove('selected');
-                if (btn.onclick.toString().includes(`'${upgradeId}'`)) { // Simple way to check which button corresponds
-                    btn.classList.add('selected');
-                }
+            document.querySelectorAll('.upgrade-icon-button').forEach(btn => btn.classList.remove('selected'));
+            document.querySelectorAll('#upgradeIconsContainer .upgrade-icon-button').forEach(btn => {
+                if (btn.innerHTML.includes(upgrade.name)) btn.classList.add('selected');
             });
         };
         
-        // Function to handle buying upgrades
         window.buyUpgrade = (upgradeId) => {
             const upgrade = permanentUpgrades[activeStation].find(u => u.id === upgradeId);
             const currentLevel = player.upgrades[upgradeId];
-            if (currentLevel >= upgrade.maxLevel) return;
-
+            if (currentLevel >= upgrade.maxLevel) { return; }
             const cost = upgrade.cost(currentLevel);
             let canAfford = true;
-            for(const mat in cost) { 
-                if(player.inventory[mat] < cost[mat]) canAfford = false; 
-            }
-
+            for(const mat in cost) { if(player.inventory[mat] < cost[mat]) { canAfford = false; break; } }
             if(canAfford) {
                 for(const mat in cost) { player.inventory[mat] -= cost[mat]; }
                 player.upgrades[upgradeId]++;
                 applyPermanentUpgrades(); 
-                window.displayUpgradeDetails(upgradeId); // Re-display details for current upgrade to reflect new level/cost
-                // Also update material counts in the HUD instantly
-                let matHTML = 'INVENTORY:<br>'; 
-                let hasMats = false;
-                for(const mat in player.inventory) {
-                    if(player.inventory[mat] > 0) {
-                        matHTML += `<span style="color:${materials[mat].color};">${materials[mat].name}: ${player.inventory[mat]}</span><br>`;
-                        hasMats = true;
-                    }
-                }
-                document.getElementById('hud-materials').innerHTML = hasMats ? matHTML : '';
+                updateMaterialHUD();
+                populateUpgradesTab(permanentUpgrades[activeStation]);
+                displayUpgradeDetails(upgradeId);
+                showMessageBox(`Successfully upgraded ${upgrade.name}!`);
             } else {
-                console.log("Cannot afford this upgrade!");
+                showMessageBox("Cannot afford this upgrade!");
             }
         };
 
-        // Function to close the station menu
         window.closeStationMenu = () => {
             showOverlay(null);
             gameState = 'starbase_hub';
             activeStation = null;
             selectedUpgradeId = null;
+            selectedWeaponId = null;
         };
 
-        function drawHUD() {
-            const barWidth = 200; 
-            ctx.font = '24px "Press Start 2P"'; ctx.fillStyle = 'white'; ctx.textAlign = 'center'; 
-            const minutes = Math.floor(timer / 60).toString().padStart(2, '0'); 
-            const seconds = Math.floor(timer % 60).toString().padStart(2, '0'); 
-            ctx.fillText(`${minutes}:${seconds}`, canvas.width / 2, 40); 
-            
-            // Health Bar
-            ctx.fillStyle = '#4B5563'; ctx.fillRect(10, canvas.height - 50, barWidth, 20); 
-            ctx.fillStyle = '#22C55E'; ctx.fillRect(10, canvas.height - 50, barWidth * (player.health / player.maxHealth), 20); 
-            ctx.strokeStyle = 'white'; ctx.strokeRect(10, canvas.height - 50, barWidth, 20); 
-            
-            // Stamina Bar
-            ctx.fillStyle = '#4B5563'; ctx.fillRect(10, canvas.height - 25, barWidth, 10); 
-            ctx.fillStyle = '#F59E0B'; ctx.fillRect(10, canvas.height - 25, barWidth * (player.stamina / player.maxStamina), 10); 
-            
-            // XP Bar
-            const xpBarWidth = canvas.width - 20; 
-            ctx.fillStyle = '#4B5563'; ctx.fillRect(10, canvas.height - 10, xpBarWidth, 5); 
-            ctx.fillStyle = '#A78BFA'; ctx.fillRect(10, canvas.height - 10, xpBarWidth * (player.xp / player.xpToNextLevel), 5); 
-            
-            // Level Text
-            ctx.font = '16px "Press Start 2P"'; ctx.fillStyle = 'white'; ctx.textAlign = 'left'; 
-            ctx.fillText(`LVL: ${player.level}`, 15, canvas.height - 60);
-            
-            // Materials HUD
+        function updateMaterialHUD() {
             let matHTML = 'INVENTORY:<br>'; 
             let hasMats = false;
             for(const mat in player.inventory) {
@@ -872,26 +1277,46 @@
             document.getElementById('hud-materials').innerHTML = hasMats ? matHTML : '';
         }
 
+        function drawHUD() {
+            const barWidth = 200; 
+            ctx.font = '24px "Press Start 2P"'; ctx.fillStyle = 'white'; ctx.textAlign = 'center'; 
+            if (gameState === 'playing' || gameState === 'paused') {
+                const minutes = Math.floor(timer / 60).toString().padStart(2, '0'); 
+                const seconds = Math.floor(timer % 60).toString().padStart(2, '0'); 
+                ctx.fillText(`${minutes}:${seconds}`, canvas.width / 2, 40); 
+            }
+            ctx.fillStyle = '#4B5563'; ctx.fillRect(10, canvas.height - 50, barWidth, 20); 
+            ctx.fillStyle = '#22C55E'; ctx.fillRect(10, canvas.height - 50, barWidth * (player.health / player.maxHealth), 20); 
+            ctx.strokeStyle = 'white'; ctx.strokeRect(10, canvas.height - 50, barWidth, 20); 
+            ctx.fillStyle = '#4B5563'; ctx.fillRect(10, canvas.height - 25, barWidth, 10); 
+            ctx.fillStyle = '#F59E0B'; ctx.fillRect(10, canvas.height - 25, barWidth * (player.stamina / player.maxStamina), 10); 
+            const xpBarWidth = canvas.width - 20; 
+            ctx.fillStyle = '#4B5563'; ctx.fillRect(10, canvas.height - 10, xpBarWidth, 5); 
+            ctx.fillStyle = '#A78BFA'; ctx.fillRect(10, canvas.height - 10, xpBarWidth * (player.xp / player.xpToNextLevel), 5); 
+            ctx.font = '16px "Press Start 2P"'; ctx.fillStyle = 'white'; ctx.textAlign = 'left'; 
+            ctx.fillText(`LVL: ${player.level}`, 15, canvas.height - 60);
+            ctx.textAlign = 'right';
+            ctx.fillText(`Weapon: ${weapons[player.currentWeaponId].name}`, canvas.width - 15, canvas.height - 60);
+            if (gameState === 'starbase_hub' || gameState === 'station_menu') {
+                ctx.textAlign = 'left';
+                ctx.fillText(`Day: ${player.daysPassed}`, 15, 40);
+            }
+            updateMaterialHUD();
+        }
+
         function drawHub() {
             sprites.drawStarbase(ctx, canvas.width, canvas.height, globalAnimTimer);
             sprites.drawTableAndChairs(ctx, starbaseHub.table.x, starbaseHub.table.y);
             sprites.drawBed(ctx, starbaseHub.bed.x, starbaseHub.bed.y, starbaseHub.bed.width, starbaseHub.bed.height);
             sprites.drawKitchen(ctx, starbaseHub.kitchen.x, starbaseHub.kitchen.y, starbaseHub.kitchen.width, starbaseHub.kitchen.height);
             starbaseHub.interactables.forEach(item => {
-                if(item.id === 'deploy') { // Explicitly draw terminal with its animation
-                    sprites.drawTerminal(ctx, item.x, item.y, item.width, item.height, globalAnimTimer);
-                } else if(item.id === 'workshop') {
-                    sprites.drawWorkshop(ctx, item.x, item.y, item.width, item.height);
-                } else if(item.id === 'armory') {
-                    sprites.drawArmory(ctx, item.x, item.y, item.width, item.height);
-                } else if(item.id === 'database') {
-                    // Draw database with its own distinct sprite function
-                    sprites.drawDatabase(ctx, item.x, item.y, item.width, item.height);
-                } else if(item.id === 'bed') {
-                    sprites.drawBed(ctx, item.x, item.y, item.width, item.height);
-                } else if(item.id === 'kitchen') {
-                    sprites.drawKitchen(ctx, item.x, item.y, item.width, item.height);
-                }
+                if(item.id === 'deploy') sprites.drawTerminal(ctx, item.x, item.y, item.width, item.height, globalAnimTimer);
+                else if(item.id === 'workshop') sprites.drawWorkshop(ctx, item.x, item.y, item.width, item.height);
+                else if(item.id === 'armory') sprites.drawArmory(ctx, item.x, item.y, item.width, item.height);
+                else if(item.id === 'database') sprites.drawDatabase(ctx, item.x, item.y, item.width, item.height);
+                else if(item.id === 'infirmary') sprites.drawInfirmary(ctx, item.x, item.y, item.width, item.height);
+                else if(item.id === 'bed') sprites.drawBed(ctx, item.x, item.y, item.width, item.height);
+                else if(item.id === 'kitchen') sprites.drawKitchen(ctx, item.x, item.y, item.width, item.height);
             });
             if(interactionTarget) {
                 ctx.font = '14px "Press Start 2P"'; ctx.fillStyle = '#FB923C'; ctx.textAlign = 'center';
@@ -900,11 +1325,11 @@
                 const textWidth = ctx.measureText(`[E] Use ${interactionTarget.name}`).width;
                 if(xPos - textWidth/2 < 10) xPos = textWidth/2 + 10;
                 if(xPos + textWidth/2 > canvas.width - 10) xPos = canvas.width - textWidth/2 - 10;
-                
                 ctx.fillText(`[E] Use`, xPos, yPos);
                 ctx.fillText(`${interactionTarget.name}`, xPos, yPos + 16);
             }
             sprites.drawPlayer(ctx, player.x, player.y, player.animFrame, mouse.facingRight);
+            drawHUD();
         }
 
         function drawPlaying() {
@@ -932,6 +1357,7 @@
                         ctx.strokeStyle = `rgba(239, 68, 68, 0.7)`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.attackRadius, 0, Math.PI * 2); ctx.stroke();
                     }
                 } else if (e.type === 'spitter') { sprites.drawSpitter(ctx, e.x, e.y); }
+                else if (e.type === 'worm') { sprites.drawWorm(ctx, e.x, e.y, globalAnimTimer); }
                 const hp = e.health / e.maxHealth;
                 if(e.health > 0 && hp < 1){ ctx.fillStyle = '#4B5563'; ctx.fillRect(e.x - e.size, e.y - e.size - 5, e.size * 2, 4); ctx.fillStyle = '#F87171'; ctx.fillRect(e.x - e.size, e.y - e.size - 5, e.size * 2 * hp, 4); }
             });
@@ -942,70 +1368,75 @@
             drawHUD();
         }
         
-        // This function is now empty as the station menu UI is handled by HTML overlay
-        function drawStationMenu() {
-            // No direct canvas drawing for the menu background or title.
-            // The HTML overlay handles this.
-            // drawHub() is called by gameLoop to ensure the base scene is drawn.
-        }
-        
         function gameLoop(currentTime) {
-            // Calculate delta time for consistent animation regardless of frame rate
             const deltaTime = (currentTime - lastTime) / 1000 || 0;
             lastTime = currentTime;
             globalAnimTimer += deltaTime;
             if (player.animTimer !== undefined) player.animTimer += deltaTime;
             
-            // Update game state based on current gameState
+            const autoShootToggle = document.getElementById('autoShootToggle');
+            const abortMissionButton = document.getElementById('abortMissionButton');
+            if (gameState === 'playing' || gameState === 'paused') {
+                autoShootToggle.style.display = 'block';
+                autoShootToggle.textContent = `Auto-Shoot: ${player.autoShoot ? 'ON' : 'OFF'}`;
+                abortMissionButton.style.display = 'block';
+            } else {
+                autoShootToggle.style.display = 'none';
+                abortMissionButton.style.display = 'none';
+            }
+
             if (gameState === 'starbase_hub' || gameState === 'station_menu') { 
-                updateHub(deltaTime); // Update player movement in hub, even if menu is open
+                updateHub(deltaTime);
             } else if (gameState === 'playing') { 
                 updatePlaying(deltaTime); 
             }
             
-            // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Draw based on current gameState
             if (gameState === 'starbase_hub' || gameState === 'station_menu') { 
-                drawHub(); // Draw the hub background and interactables
+                drawHub();
             } else if (gameState === 'playing' || gameState === 'paused') { 
-                drawPlaying(); // Draw gameplay elements
-            }
-            // The 'station_menu' overlay is handled by HTML/CSS, not canvas drawing.
-            
-            // Handle game over or victory states
-            if (gameState === 'gameOver' || gameState === 'victory') {
-                drawPlaying(); // Draw final game state before overlay
-                showOverlay(gameState); // Show the appropriate overlay
-                if(gameLoopId) cancelAnimationFrame(gameLoopId); // Stop the game loop
-                return; // Exit loop
+                drawPlaying();
             }
             
-            // Request next animation frame
+            if (gameState === 'gameOver') {
+                drawPlaying();
+                showOverlay('gameOver');
+                player.level = Math.max(1, player.level - 1);
+                player.xp = 0;
+                player.xpToNextLevel = Math.floor(100 * Math.pow(1.5, player.level - 1));
+                player.health = player.maxHealth;
+                player.stamina = player.maxStamina;
+                applyPermanentUpgrades();
+                if(gameLoopId) cancelAnimationFrame(gameLoopId);
+                return;
+            } else if (gameState === 'victory') {
+                drawPlaying();
+                showOverlay('victory');
+                if(gameLoopId) cancelAnimationFrame(gameLoopId);
+                return;
+            }
+            
             gameLoopId = requestAnimationFrame(gameLoop);
         }
         
-        // Initialization function
         function init() {
-            // Set up static overlay content
             const genericButton = `onclick="window.returnToHub()" class="game-button"`;
             const overlays = { 
-                gameOver: `<h1 class="text-5xl mb-4 text-red-500">Mission Failed</h1><p class="text-lg mb-12 text-gray-300">You have been overrun.</p><button ${genericButton}>Return to Hangar</button>`, 
+                gameOver: `<h1 class="text-5xl mb-4 text-red-500">Mission Failed</h1><p class="text-lg mb-12 text-gray-300">You have been overrun.<br>Level lost. Try again!</p><button ${genericButton}>Return to Hangar</button>`, 
                 victory: `<h1 class="text-5xl mb-4 text-green-400">Mission Accomplished</h1><p class="text-lg mb-12 text-gray-300">Welcome back, survivor.</p><button ${genericButton}>Return to Hangar</button>`
             };
             for(const [id, content] of Object.entries(overlays)) { document.getElementById(id).innerHTML = content; }
             
-            // Event Listeners
             window.addEventListener('resize', setCanvasDimensions);
             window.addEventListener('keydown', e => { 
                 const key = e.key.toLowerCase(); 
                 if(keys.hasOwnProperty(key)) keys[key] = true; 
-                if (key === ' ' && gameState === 'playing' && player.stamina >= player.dashCost && player.dashCooldown <= 0) {
-                    startDash(); 
-                }
                 if (key === 'e' && (gameState === 'starbase_hub' || gameState === 'station_menu') && interactionTarget) { 
                     handleInteraction(interactionTarget.id); 
+                }
+                if ((key === 'x' || key === 'escape') && (gameState === 'playing' || gameState === 'paused')) {
+                    window.returnToHub();
                 }
             });
             window.addEventListener('keyup', e => { 
@@ -1015,35 +1446,38 @@
                 const rect = canvas.getBoundingClientRect();
                 mouse.x = e.clientX - rect.left;
                 mouse.y = e.clientY - rect.top;
-                // Determine player facing direction
                 mouse.facingRight = mouse.x > player.x;
             });
             canvas.addEventListener('mousedown', e => {
-                if (e.button === 0) mouse.click = true; // Left click
+                if (e.button === 0) mouse.click = true;
             });
             canvas.addEventListener('mouseup', e => {
                 if (e.button === 0) mouse.click = false;
             });
 
-            // Initialize player, dimensions, textures, and start game loop
+            document.getElementById('autoShootToggle').addEventListener('click', () => {
+                player.autoShoot = !player.autoShoot;
+            });
+            document.getElementById('abortMissionButton').addEventListener('click', () => {
+                window.returnToHub();
+            });
+
             setupPlayer();
             setCanvasDimensions();
             createTextures();
-            returnToHub(); // Start at the starbase hub
+            updateMaterialHUD();
+            returnToHub();
         }
 
-        // Run initialization when the script loads
         init();
 
-        // Mouse update loop
         function mouseLoop() {
-            // Check for continuous firing if left mouse button is held down
-            if (mouse.click && gameState === 'playing' && player.fireCooldown <= 0) {
+            if ((mouse.click || player.autoShoot) && gameState === 'playing' && player.fireCooldown <= 0) {
                 fireProjectile();
             }
             requestAnimationFrame(mouseLoop);
         }
-        mouseLoop(); // Start the mouse loop
+        mouseLoop();
     })();
     </script>
 </body>
