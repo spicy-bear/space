@@ -149,12 +149,6 @@
             border-color: #4ade80; /* Highlight color for selected icon */
             box-shadow: 0 0 15px rgba(74, 222, 128, 0.5);
         }
-        .upgrade-icon-button .icon-text {
-            font-size: 0.75rem; /* Smaller text for icon label */
-            margin-top: 0.5rem;
-            color: #D1D5DB;
-            text-transform: uppercase;
-        }
         /* Style for equipped items */
         .upgrade-icon-button.equipped {
             border-color: #818cf8; /* A different highlight for equipped */
@@ -162,6 +156,12 @@
         .upgrade-icon-button.can-afford { border-color: #a3e635; }
         .upgrade-icon-button.is-max { border-color: #f97316; }
 
+        .upgrade-icon-button .icon-text {
+            font-size: 0.75rem; /* Smaller text for icon label */
+            margin-top: 0.5rem;
+            color: #D1D5DB;
+            text-transform: uppercase;
+        }
         #upgradeDetailsBox {
             background-color: #1f2937;
             padding: 1.5rem;
@@ -172,7 +172,7 @@
             text-align: left;
             margin-top: 1rem;
             box-shadow: 0 0 10px rgba(251, 146, 60, 0.2);
-            display: none; 
+            display: none; /* Hidden by default */
             flex-direction: column;
             justify-content: space-between;
         }
@@ -246,17 +246,45 @@
         .message-box button {
             margin-top: 1rem;
         }
+
+        /* Database Styles */
+        .database-entry {
+            display: flex;
+            align-items: center;
+            background-color: #374151;
+            border: 2px solid #9CA3AF;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            width: 80%;
+            max-width: 600px;
+            text-align: left;
+        }
+        .database-entry-icon {
+            width: 80px;
+            height: 80px;
+            margin-right: 1.5rem;
+            background-color: #2d3540; /* Slightly different background for icon */
+            border-radius: 8px;
+            flex-shrink: 0;
+            display: flex; /* For centering content inside */
+            align-items: center;
+            justify-content: center;
+        }
+        .database-entry-details {
+            flex-grow: 1;
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
 
-        <!-- Auto-Shoot Toggle -->
-        <button id="autoShootToggle" class="game-button absolute top-4 left-4 text-sm px-4 py-2" style="z-index: 5; display: none;">Auto-Shoot: OFF</button>
         <!-- Abort Mission Button -->
         <button id="abortMissionButton" class="game-button absolute top-4 right-4 text-sm px-4 py-2" style="z-index: 5; display: none;">Abort Mission (X)</button>
-
+        <!-- Auto-Shoot Toggle -->
+        <button id="autoShootToggle" class="game-button absolute top-28 right-4 text-sm px-4 py-2" style="z-index: 5; display: none;">Auto-Shoot: OFF</button>
+        
         <div id="mapSelection" class="overlay overlay-hidden"></div>
         <div id="levelUpSelection" class="overlay overlay-hidden"></div>
         <div id="stationMenu" class="overlay overlay-hidden">
@@ -268,7 +296,7 @@
             </div>
 
             <div id="weaponsTabContent" class="tab-content active">
-                 <div id="weaponIconsContainer" class="icon-container"></div>
+                   <div id="weaponIconsContainer" class="icon-container"></div>
             </div>
 
             <div id="upgradesTabContent" class="tab-content">
@@ -371,20 +399,7 @@
             alien_chitin: { color: '#FCA5A5', name: 'Alien Chitin' },
             plant_fiber: { color: '#86EFAC', name: 'Plant Fiber' },
         };
-        const alienData = {
-            'charger': { 
-                name: 'Charger', health: 10, xpValue: 20, 
-                drops: [{ material: 'alien_chitin', chance: 0.5, quantity: 1 }] 
-            },
-            'spitter': { 
-                name: 'Spitter', health: 20, xpValue: 30,
-                drops: [{ material: 'alien_chitin', chance: 0.2 }, { material: 'plant_fiber', chance: 0.1, quantity: 1 }]
-            },
-            'worm': {
-                name: 'Rock Worm', health: 30, xpValue: 40,
-                drops: [{ material: 'moondust', chance: 0.3, quantity: 1 }, { material: 'alien_chitin', chance: 0.1, quantity: 1 }]
-            }
-        };
+        
         const weapons = {
             'blaster': { id: 'blaster', name: 'Standard Blaster', description: 'Your trusty starting weapon. Balanced fire rate and damage.', icon: '🔫',
                          baseDamage: 10, baseFireRate: 1, baseProjectileSpeed: 300, cost: {} },
@@ -392,7 +407,7 @@
                          baseDamage: 5, baseFireRate: 0.7, baseProjectileSpeed: 250, projectilesPerShot: 3, spreadAngle: 0.3, cost: { moondust: 100, alien_chitin: 50 } },
             'phaser': { id: 'phaser', name: 'Phaser Rifle', description: 'Rapid-fire energy bursts. Low damage but high accuracy and speed.', icon: '⚡',
                          baseDamage: 7, baseFireRate: 2, baseProjectileSpeed: 400, cost: { moondust: 70, plant_fiber: 80 } },
-            'bfg': { id: 'bfg', name: 'Big Friendly Gun', description: 'Slow firing, but devastating. Fires a massive, high-damage projectile.', icon: '💣',
+            'bfg': { id: 'bfg', name: 'Big Friendly Gun', description: 'Slow firing, but devastating. Fires a massive, high-damage projectile that explodes on impact.', icon: '�',
                        baseDamage: 50, baseFireRate: 0.3, baseProjectileSpeed: 200, cost: { moondust: 200, alien_chitin: 150, plant_fiber: 100 } },
         };
         const permanentUpgrades = {
@@ -578,6 +593,24 @@
                 }
             },
         };
+
+        const alienData = {
+            'charger': { 
+                name: 'Charger', health: 10, xpValue: 20, 
+                drops: [{ material: 'alien_chitin', chance: 0.5, quantity: 1 }],
+                sprite: sprites.drawCharger
+            },
+            'spitter': { 
+                name: 'Spitter', health: 20, xpValue: 30,
+                drops: [{ material: 'alien_chitin', chance: 0.2, quantity: 1 }, { material: 'plant_fiber', chance: 0.1, quantity: 1 }],
+                sprite: sprites.drawSpitter
+            },
+            'worm': {
+                name: 'Rock Worm', health: 30, xpValue: 40,
+                drops: [{ material: 'moondust', chance: 0.3, quantity: 1 }, { material: 'alien_chitin', chance: 0.1, quantity: 1 }],
+                sprite: sprites.drawWorm
+            }
+        };
         
         function setupStars(count = 100) {
             stars.length = 0;
@@ -612,11 +645,11 @@
             starbaseHub.workshop.x = room.x + 60; starbaseHub.workshop.y = room.y + room.height / 2 + 20;
             starbaseHub.armory.x = room.x + room.width - 50; starbaseHub.armory.y = room.y + room.height / 2 + 20;
             starbaseHub.garage.x = room.x + room.width / 2; starbaseHub.garage.y = room.y + room.height - 50;
-            starbaseHub.infirmary.x = room.x + room.width - 60; starbaseHub.infirmary.y = room.y + 50;
             starbaseHub.database.x = room.x + 80; starbaseHub.database.y = room.y + room.height - 50;
             starbaseHub.table.x = room.x + room.width - 120; starbaseHub.table.y = room.y + room.height - 50;
             starbaseHub.bed.x = room.x + 70; starbaseHub.bed.y = room.y + 50;
-            starbaseHub.kitchen.x = room.x + room.width - 160; starbaseHub.kitchen.y = room.y + 50;
+            starbaseHub.kitchen.x = room.x + room.width - 60; starbaseHub.kitchen.y = room.y + 50;
+            starbaseHub.infirmary.x = room.x + room.width - 150; starbaseHub.infirmary.y = room.y + 50;
             starbaseHub.interactables = [starbaseHub.terminal, starbaseHub.workshop, starbaseHub.armory, starbaseHub.garage, starbaseHub.database, starbaseHub.infirmary, starbaseHub.bed, starbaseHub.kitchen];
             setupStars();
         }
@@ -666,15 +699,27 @@
         function showDatabase() {
             gameState = 'paused';
             let databaseHTML = `<h1 class="text-4xl mb-8 text-cyan-300">Alien Database</h1><div class="flex flex-col items-center w-full max-h-[80vh] overflow-y-auto">`;
+            
             for (const key in alienData) {
                 const data = alienData[key];
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = 60; tempCanvas.height = 60;
+                const tempCtx = tempCanvas.getContext('2d');
+                data.sprite(tempCtx, 30, 30, 0); // Draw sprite centered
+                const iconSrc = tempCanvas.toDataURL();
+
                 let dropsHTML = data.drops.map(d => `<p class="card-desc ml-4">- ${d.quantity} ${materials[d.material].name} (${d.chance * 100}%)</p>`).join('');
                 databaseHTML += `
-                    <div class="map-card w-3/4">
-                        <h3 class="card-title text-2xl">${data.name}</h3>
-                        <p class="card-desc">Known Health: ${data.health} HP</p>
-                        <p class="card-desc">Known Drops:</p>
-                        ${dropsHTML}
+                    <div class="database-entry">
+                        <div class="database-entry-icon">
+                            <img src="${iconSrc}" alt="${data.name} icon" class="w-full h-full object-contain" />
+                        </div>
+                        <div class="database-entry-details">
+                            <h3 class="card-title text-2xl">${data.name}</h3>
+                            <p class="card-desc">Known Health: ${data.health} HP</p>
+                            <p class="card-desc">Known Drops:</p>
+                            ${dropsHTML}
+                        </div>
                     </div>
                 `;
             }
@@ -863,7 +908,7 @@
             
             // In hub, only collide with walls.
             if (gameState === 'starbase_hub' || gameState === 'station_menu') {
-                 player.x = nextX; player.y = nextY;
+                player.x = nextX; player.y = nextY;
             } else { // In mission, collide with rocks/plants
                 let collided = false;
                 terrain.forEach(t => { 
@@ -878,7 +923,7 @@
                     player.y = nextY; 
                 }
             }
-           
+            
             const bounds = (gameState === 'starbase_hub' || gameState === 'station_menu') ? starbaseHub.rect : {x: 0, y: 0, width: canvas.width, height: canvas.height};
             player.x = Math.max(bounds.x + player.width/2, Math.min(bounds.x + bounds.width - player.width/2, player.x));
             player.y = Math.max(bounds.y + player.height/2, Math.min(bounds.y + bounds.height - player.height/2, player.y));
@@ -990,15 +1035,20 @@
         function fireProjectile() { 
             player.fireCooldown = 1 / player.fireRate; 
             const angle = Math.atan2(mouse.y - player.y, mouse.x - player.x); 
+            const equippedWeapon = weapons[player.currentWeaponId];
+
             for (let i = 0; i < player.projectilesPerShot; i++) {
                 const currentAngle = angle + (i - (player.projectilesPerShot - 1) / 2) * player.spreadAngle;
+                const isBFG = (player.currentWeaponId === 'bfg');
                 playerProjectiles.push({ 
                     x: player.x, y: player.y, 
-                    radius: (player.currentWeaponId === 'bfg' ? 8 : 4),
+                    radius: (isBFG ? 8 : 4),
                     color: (player.currentWeaponId === 'phaser' ? '#A78BFA' : '#FBBF24'),
                     speed: player.projectileSpeed, 
                     vx: Math.cos(currentAngle), vy: Math.sin(currentAngle), 
-                    damage: player.attackPower 
+                    damage: player.attackPower,
+                    isBFG: isBFG, // Mark as BFG projectile
+                    explosionRadius: isBFG ? 80 : 0 // BFG explosion radius
                 }); 
             }
         };
@@ -1171,28 +1221,43 @@
                 const p = playerProjectiles[i];
                 p.x += p.vx * p.speed * deltaTime; p.y += p.vy * p.speed * deltaTime;
                 if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) { playerProjectiles.splice(i, 1); continue; }
-                let hit = false;
+                
+                let projectileRemoved = false;
+
+                // Check collision with terrain (resource nodes)
                 for (let t_idx = terrain.length - 1; t_idx >= 0; t_idx--) {
                     const t = terrain[t_idx];
                     if(t.type !== 'resource_node') continue;
                     if (Math.hypot(p.x - t.x, p.y - t.y) < t.radius + p.radius) { 
                         t.health -= p.damage; 
+                        if (p.isBFG) { // BFG explodes on resource node hit
+                            createExplosion(p.x, p.y, p.explosionRadius, p.damage);
+                        }
                         if (t.health <= 0) { 
                             createMaterialDrop(t.x, t.y, t.material); 
                             terrain.splice(t_idx, 1);
                         } 
                         playerProjectiles.splice(i, 1);
-                        hit = true; 
+                        projectileRemoved = true; 
                         break;
                     }
                 }
-                if (hit) continue;
+                if (projectileRemoved) continue;
 
+                // Check collision with enemies
                 for (let j = enemies.length - 1; j >= 0; j--) {
                     const e = enemies[j];
-                    if (Math.hypot(p.x - e.x, p.y - e.y) < e.size) {
+                    if (Math.hypot(p.x - e.x, p.y - e.y) < e.size + p.radius) {
                         e.health -= p.damage; 
+                        if (p.isBFG) { // BFG explodes on enemy hit
+                            createExplosion(e.x, e.y, p.explosionRadius, p.damage);
+                        }
+                        
+                        // For BFG, it explodes and is removed.
+                        // For other weapons, remove on first hit.
                         playerProjectiles.splice(i, 1);
+                        projectileRemoved = true;
+                        
                         if (e.health <= 0) {
                             createExplosion(e.x, e.y, e.size * 1.5, 0, 10); // death explosion
                             e.drops.forEach(drop => {
@@ -1203,7 +1268,7 @@
                             createShard(e.x, e.y, e.xpValue);
                             enemies.splice(j,1);
                         } 
-                        break;
+                        if (projectileRemoved) break;
                     }
                 }
             }
@@ -1270,6 +1335,7 @@
 
             if (stationId === 'armory') {
                 document.querySelector('.station-tabs').style.display = 'flex';
+                // Trigger click on weapons tab to ensure it's active and populated
                 document.querySelector('.station-tab[data-tab="weapons"]').click();
             } else {
                 document.querySelector('.station-tabs').style.display = 'none';
@@ -1303,6 +1369,7 @@
             weaponIconsContainerEl.innerHTML = '';
             Object.values(weapons).forEach(weapon => {
                 const isEquipped = player.currentWeaponId === weapon.id;
+                const isOwned = player.ownedWeapons[weapon.id];
                 const iconButton = document.createElement('div');
                 iconButton.className = `upgrade-icon-button ${isEquipped ? 'equipped' : ''}`;
                 iconButton.innerHTML = `${weapon.icon}<br><span class="icon-text">${weapon.name}</span>`;
@@ -1364,7 +1431,10 @@
 
             document.querySelectorAll('.upgrade-icon-button').forEach(btn => btn.classList.remove('selected'));
             document.querySelectorAll('#weaponIconsContainer .upgrade-icon-button').forEach(btn => {
-                if (btn.innerHTML.includes(weapon.name)) btn.classList.add('selected');
+                // Check if the button's inner HTML contains the weapon's icon and name for accurate selection
+                if (btn.innerHTML.includes(weapon.icon) && btn.innerHTML.includes(weapon.name)) {
+                    btn.classList.add('selected');
+                }
             });
         };
 
@@ -1407,7 +1477,7 @@
                 for(const mat in cost) { if(player.inventory[mat] < cost[mat]) canAfford = false; }
                 const iconButton = document.createElement('div');
                 iconButton.className = `upgrade-icon-button ${isMaxLevel ? 'is-max' : ''} ${canAfford && !isMaxLevel ? 'can-afford' : ''}`;
-                iconButton.innerHTML = `${upgrade.icon}<br><span class="icon-text">${upgrade.name}</span>`;
+                iconButton.innerHTML = `${upgrade.icon}<br><span class="icon-text">${upgrade.name}<br>Lv ${currentLevel}</span>`; // Show current level
                 iconButton.onclick = () => window.displayUpgradeDetails(upgrade.id);
                 upgradeIconsContainerEl.appendChild(iconButton);
             });
@@ -1448,7 +1518,10 @@
 
             document.querySelectorAll('.upgrade-icon-button').forEach(btn => btn.classList.remove('selected'));
             document.querySelectorAll('#upgradeIconsContainer .upgrade-icon-button').forEach(btn => {
-                if (btn.innerHTML.includes(upgrade.name)) btn.classList.add('selected');
+                // Check if the button's inner HTML contains the upgrade's icon and name for accurate selection
+                if (btn.innerHTML.includes(upgrade.icon) && btn.innerHTML.includes(upgrade.name)) {
+                    btn.classList.add('selected');
+                }
             });
         };
         
@@ -1464,8 +1537,8 @@
                 player.upgrades[upgradeId]++;
                 applyPermanentUpgrades(); 
                 updateMaterialHUD();
-                populateUpgradesTab(permanentUpgrades[activeStation]);
-                displayUpgradeDetails(upgradeId);
+                populateUpgradesTab(permanentUpgrades[activeStation]); // Repopulate to show new levels/status
+                displayUpgradeDetails(upgradeId); // Update the detail box
                 showMessageBox(`Successfully upgraded ${upgrade.name}!`);
             } else {
                 showMessageBox("Cannot afford this upgrade!");
@@ -1481,15 +1554,12 @@
         };
 
         function updateMaterialHUD() {
-            let matHTML = 'INVENTORY:<br>'; 
-            let hasMats = false;
-            for(const mat in player.inventory) {
-                if(player.inventory[mat] > 0) {
-                    matHTML += `<span style="color:${materials[mat].color};">${materials[mat].name}: ${player.inventory[mat]}</span><br>`;
-                    hasMats = true;
-                }
+            const hudMaterialsEl = document.getElementById('hud-materials');
+            let materialsHtml = '<span class="text-orange-300 text-lg">Materials</span><br>';
+            for (const matType in materials) {
+                materialsHtml += `<span style="color:${materials[matType].color};">${materials[matType].name}: ${player.inventory[matType]}</span><br>`;
             }
-            document.getElementById('hud-materials').innerHTML = hasMats ? matHTML : '';
+            hudMaterialsEl.innerHTML = materialsHtml;
         }
 
         function drawHUD() {
@@ -1741,3 +1811,4 @@
     </script>
 </body>
 </html>
+�
