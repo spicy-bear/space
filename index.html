@@ -344,7 +344,7 @@
         // --- Entity & Data Arrays ---
         const player = {};
         const rover = {};
-        const playerProjectiles = [];
+        const playerProjectiles = []; // All projectiles, will be differentiated by 'source' property
         const enemyProjectiles = [];
         const enemies = [];
         const shards = [];
@@ -391,13 +391,14 @@
             { id: 'stamina_regen', title: 'Adrenal Pump', desc: '+20% Stamina Regen', apply: p => { p.staminaRegen *= 1.2; } },
             { id: 'xp_gain', title: 'Shard Magnet', desc: '+15% XP Gain', apply: p => { p.xpGainMultiplier *= 1.15; } },
             { id: 'drone_add', title: 'Deploy Drone', desc: 'Adds an automated combat drone (Max 5).', apply: p => { if(p.drones < 5) p.drones++; syncDrones(); } },
-            { id: 'rover_upgrade', title: 'Rover Munitions', desc: 'Adds an extra projectile to every shot (Max 5).', apply: p => { if(p.roverProjectiles < 5) p.roverProjectiles++; applyPermanentUpgrades(); } },
+            { id: 'rover_upgrade', title: 'Rover Munitions', desc: 'Adds an extra projectile to rover\'s shots (Max 5).', apply: p => { if(rover.projectilesPerShot < 5) rover.projectilesPerShot++; } }, // Modified for rover
             { id: 'orbital_cooldown', title: 'Targeting Computer', desc: 'Reduces orbital strike cooldown by 20%.', apply: p => { p.orbitalCooldownMultiplier *= 0.8; } },
         ];
         const materials = {
             moondust: { color: '#E5E7EB', name: 'Moondust' },
             alien_chitin: { color: '#FCA5A5', name: 'Alien Chitin' },
             plant_fiber: { color: '#86EFAC', name: 'Plant Fiber' },
+            goop: { color: '#9333ea', name: 'Goop' }, // New material
         };
         
         const weapons = {
@@ -407,7 +408,7 @@
                          baseDamage: 5, baseFireRate: 0.7, baseProjectileSpeed: 250, projectilesPerShot: 3, spreadAngle: 0.3, cost: { moondust: 100, alien_chitin: 50 } },
             'phaser': { id: 'phaser', name: 'Phaser Rifle', description: 'Rapid-fire energy bursts. Low damage but high accuracy and speed.', icon: '⚡',
                          baseDamage: 7, baseFireRate: 2, baseProjectileSpeed: 400, cost: { moondust: 70, plant_fiber: 80 } },
-            'bfg': { id: 'bfg', name: 'Big Friendly Gun', description: 'Slow firing, but devastating. Fires a massive, high-damage projectile that explodes on impact.', icon: '�',
+            'bfg': { id: 'bfg', name: 'Big Friendly Gun', description: 'Slow firing, but devastating. Fires a massive, high-damage projectile that explodes on impact.', icon: '💣',
                        baseDamage: 50, baseFireRate: 0.3, baseProjectileSpeed: 200, cost: { moondust: 200, alien_chitin: 150, plant_fiber: 100 } },
         };
         const permanentUpgrades = {
@@ -463,6 +464,62 @@
                 ctx.fillStyle = '#000';
                 ctx.beginPath(); ctx.arc(-3 + Math.sin(animTimer * wiggleSpeed) * wiggleMagnitude, -baseRadius - 5, 1.5, 0, Math.PI * 2); ctx.fill();
                 ctx.beginPath(); ctx.arc(3 + Math.sin(animTimer * wiggleSpeed) * wiggleMagnitude, -baseRadius - 5, 1.5, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            },
+            // New sprite for Squid alien
+            drawSquid: (ctx, x, y, animTimer) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const bodyColor = '#6d28d9'; // Purple
+                const eyeColor = '#ede9fe'; // Light purple/white
+                const pupilColor = '#000'; // Black
+                const tentacleColor = '#8b5cf6'; // Lighter purple
+
+                // Body
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.ellipse(0, -10, 20, 25, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+
+                // Eyes
+                ctx.fillStyle = eyeColor;
+                ctx.beginPath();
+                ctx.arc(-8, -15, 4, 0, Math.PI * 2); // Left eye
+                ctx.arc(8, -15, 4, 0, Math.PI * 2); // Right eye
+                ctx.fill();
+
+                ctx.fillStyle = pupilColor;
+                ctx.beginPath();
+                ctx.arc(-8 + Math.sin(animTimer * 5) * 1, -15, 2, 0, Math.PI * 2); // Left pupil
+                ctx.arc(8 + Math.sin(animTimer * 5) * 1, -15, 2, 0, Math.PI * 2); // Right pupil
+                ctx.fill();
+
+                // Tentacles (simple representation)
+                ctx.strokeStyle = tentacleColor;
+                ctx.lineWidth = 3;
+                const tentacleWiggle = Math.sin(animTimer * 7) * 5;
+                
+                ctx.beginPath();
+                ctx.moveTo(-15, 10);
+                ctx.quadraticCurveTo(-20, 20 + tentacleWiggle, -10, 30);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(15, 10);
+                ctx.quadraticCurveTo(20, 20 - tentacleWiggle, 10, 30);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(-5, 15);
+                ctx.quadraticCurveTo(-5, 25 + tentacleWiggle, 0, 35);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(5, 15);
+                ctx.quadraticCurveTo(5, 25 - tentacleWiggle, 0, 35);
+                ctx.stroke();
+
                 ctx.restore();
             },
             drawDrone: (ctx, x, y) => {
@@ -573,6 +630,15 @@
                 ctx.moveTo(x, y - 8); ctx.lineTo(x + 2, y - 5); ctx.lineTo(x, y - 6);
                 ctx.closePath(); ctx.fill();
             },
+            // New sprite for Goop material drop
+            drawGoop: (ctx, x, y, color) => {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, 7, 0, Math.PI * 2);
+                ctx.ellipse(x - 5, y + 5, 5, 3, 0, 0, Math.PI * 2);
+                ctx.ellipse(x + 5, y + 4, 4, 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            },
             drawResourceNode: (ctx, node) => {
                 if (node.material === 'plant_fiber' && activeMap && activeMap.id === 'verdant_prime') {
                     sprites.drawMushroomResource(ctx, node.x, node.y, node.radius, materials[node.material].color);
@@ -588,6 +654,8 @@
             drawMaterial: (ctx, x, y, type) => {
                 if (type === 'alien_chitin') {
                     sprites.drawChitinShard(ctx, x, y, materials[type].color);
+                } else if (type === 'goop') { // New drawing for Goop
+                    sprites.drawGoop(ctx, x, y, materials[type].color);
                 } else {
                     ctx.fillStyle = materials[type].color; ctx.fillRect(x-5, y-5, 10, 10); ctx.strokeStyle = '#111827'; ctx.lineWidth = 2; ctx.strokeRect(x-5, y-5, 10, 10);
                 }
@@ -609,6 +677,13 @@
                 name: 'Rock Worm', health: 30, xpValue: 40,
                 drops: [{ material: 'moondust', chance: 0.3, quantity: 1 }, { material: 'alien_chitin', chance: 0.1, quantity: 1 }],
                 sprite: sprites.drawWorm
+            },
+            'squid': { // New alien type
+                name: 'Acid Squid', health: 25, xpValue: 35,
+                drops: [{ material: 'goop', chance: 0.7, quantity: 1 }],
+                sprite: sprites.drawSquid,
+                attackDamage: 8, attackCooldown: 1.5, attackRate: 1/1.5, // Melee attack properties
+                speed: 60
             }
         };
         
@@ -705,7 +780,13 @@
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = 60; tempCanvas.height = 60;
                 const tempCtx = tempCanvas.getContext('2d');
-                data.sprite(tempCtx, 30, 30, 0); // Draw sprite centered
+                // Draw sprite on a temporary canvas to get its image data
+                // Need to pass animTimer for worm and squid
+                if (key === 'worm' || key === 'squid') {
+                    data.sprite(tempCtx, 30, 30, globalAnimTimer); 
+                } else {
+                    data.sprite(tempCtx, 30, 30); 
+                }
                 const iconSrc = tempCanvas.toDataURL();
 
                 let dropsHTML = data.drops.map(d => `<p class="card-desc ml-4">- ${d.quantity} ${materials[d.material].name} (${d.chance * 100}%)</p>`).join('');
@@ -808,7 +889,7 @@
         function setupPlayer() { 
             Object.assign(player, { 
                 width: 16, height: 24, speed: 200, staminaRegen: 25, dashCost: 40, isDashing: false, dashCooldown: 0, dashDuration: 0.15, dashSpeed: 600, level: 1, xp: 0, xpToNextLevel: 100, xpGainMultiplier: 1.0, fireCooldown: 0, animTimer: 0, animFrame: 0, isMoving: false, 
-                inventory: { moondust: 1000, alien_chitin: 1000, plant_fiber: 1000 }, 
+                inventory: { moondust: 1000, alien_chitin: 1000, plant_fiber: 1000, goop: 1000 }, // Added 'goop' to inventory
                 upgrades: { 
                     suit_hp: 0, suit_regen: 0, suit_stamina: 0, 
                     gun_dmg: 0, gun_rate: 0, gun_proj_speed: 0,
@@ -820,9 +901,20 @@
                 infirmaryLastUsed: -Infinity,
                 daysPassed: 1,
                 drones: 0,
-                roverProjectiles: 0,
+                // roverProjectiles: 0, // This variable is now managed by the rover object directly for its firing
                 orbitalCooldownMultiplier: 1.0
             }); 
+            // Initialize rover properties
+            Object.assign(rover, {
+                active: false,
+                x: 0, y: 0,
+                fireCooldown: 0,
+                fireRate: 0.8, // Rover base fire rate
+                projectilesPerShot: 1, // Rover's own projectile count
+                projectileSpeed: 250,
+                damage: 7,
+            });
+
             player.baseMaxHealth = 100;
             player.baseMaxStamina = 100;
             applyPermanentUpgrades(); 
@@ -840,8 +932,8 @@
             player.fireRate = equippedWeapon.baseFireRate * (1 + player.upgrades.gun_rate * 0.05); 
             player.projectileSpeed = equippedWeapon.baseProjectileSpeed + player.upgrades.gun_proj_speed * 10; 
             
-            const roverBonus = player.upgrades.rover_unlock ? player.roverProjectiles : 0;
-            player.projectilesPerShot = (equippedWeapon.projectilesPerShot || 1) + roverBonus;
+            // Player's projectiles per shot should only be based on their weapon, not rover's
+            player.projectilesPerShot = (equippedWeapon.projectilesPerShot || 1); 
 
             if (player.projectilesPerShot > 1 && !equippedWeapon.spreadAngle) {
                 player.spreadAngle = 0.2; 
@@ -851,12 +943,13 @@
         }
 
         function resetForMission() {
-            player.drones = player.upgrades.drone_unlock;
-            player.roverProjectiles = player.upgrades.rover_unlock ? 1 : 0;
-            rover.active = player.upgrades.rover_unlock === 1;
+            player.drones = player.upgrades.drone_unlock; // Drones unlock state determines if player has drones
+            rover.active = player.upgrades.rover_unlock === 1; // Rover unlock state
             if(rover.active) {
                 rover.x = player.x;
                 rover.y = player.y;
+                rover.projectilesPerShot = 1; // Reset rover projectiles per shot at mission start, increased by power-ups
+                rover.fireCooldown = 0; // Reset rover fire cooldown
             }
             orbitalStrike.enabled = player.upgrades.orbital_unlock === 1;
             orbitalStrike.timer = orbitalStrike.cooldown;
@@ -988,12 +1081,22 @@
                         if (player.health <= 0) { gameState = 'gameOver';}
                     }
                     enemy.attackCooldown -= deltaTime;
+                } else if (enemy.type === 'squid') { // New squid alien behavior
+                    enemy.attackCooldown -= deltaTime;
+                    enemy.x += Math.cos(angle) * enemy.speed * deltaTime;
+                    enemy.y += Math.sin(angle) * enemy.speed * deltaTime;
+                    if (distToPlayer < enemy.size + player.width / 2 && enemy.attackCooldown <= 0) {
+                        player.health -= enemy.attackDamage;
+                        enemy.attackCooldown = 1 / enemy.attackRate;
+                        if (player.health <= 0) { gameState = 'gameOver';}
+                    }
                 }
             });
         }
         function createEnemy() { 
             const enemyTypes = Object.keys(alienData);
-            const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+            // Increased spawn variety by adding squid to the mix
+            const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)]; 
             const data = alienData[type];
             
             let x, y; 
@@ -1009,6 +1112,9 @@
             } else if (type === 'worm') {
                 size = 18; speed = 30 + Math.random() * 20;
                 Object.assign(enemySpecificProps, { attackDamage: 15, attackCooldown: 1, attackRate: 1 });
+            } else if (type === 'squid') { // New squid properties
+                size = 15; speed = 60 + Math.random() * 20;
+                Object.assign(enemySpecificProps, { attackDamage: 8, attackCooldown: 1.5, attackRate: 1/1.5 });
             }
 
             const edge = Math.floor(Math.random() * 4); 
@@ -1048,7 +1154,8 @@
                     vx: Math.cos(currentAngle), vy: Math.sin(currentAngle), 
                     damage: player.attackPower,
                     isBFG: isBFG, // Mark as BFG projectile
-                    explosionRadius: isBFG ? 80 : 0 // BFG explosion radius
+                    explosionRadius: isBFG ? 80 : 0, // BFG explosion radius
+                    source: 'player'
                 }); 
             }
         };
@@ -1070,8 +1177,23 @@
             const angle = Math.atan2(target.y - drone.y, target.x - drone.x);
             playerProjectiles.push({
                 x: drone.x, y: drone.y, radius: 3, color: '#38bdf8', // Light blue for drone shots
-                speed: 400, vx: Math.cos(angle), vy: Math.sin(angle), damage: 5
+                speed: 400, vx: Math.cos(angle), vy: Math.sin(angle), damage: 5,
+                source: 'drone'
             });
+        }
+
+        // New function for rover firing
+        function fireRoverProjectile(rover, target) {
+            const angle = Math.atan2(target.y - rover.y, target.x - rover.x);
+            for (let i = 0; i < rover.projectilesPerShot; i++) {
+                const spreadAngle = (rover.projectilesPerShot > 1) ? 0.1 : 0; // Small spread for multiple rover shots
+                const currentAngle = angle + (i - (rover.projectilesPerShot - 1) / 2) * spreadAngle;
+                playerProjectiles.push({
+                    x: rover.x, y: rover.y, radius: 4, color: '#facc15', // Yellow for rover shots
+                    speed: rover.projectileSpeed, vx: Math.cos(currentAngle), vy: Math.sin(currentAngle), damage: rover.damage,
+                    source: 'rover'
+                });
+            }
         }
         
         function syncDrones() {
@@ -1110,6 +1232,16 @@
             const targetY = player.y + 20;
             rover.x += (targetX - rover.x) * 0.1;
             rover.y += (targetY - rover.y) * 0.1;
+
+            // Rover firing logic
+            rover.fireCooldown -= deltaTime;
+            if (rover.fireCooldown <= 0) {
+                const nearestEnemy = findNearestEnemy(rover.x, rover.y, 400); // Rover has a range
+                if (nearestEnemy) {
+                    fireRoverProjectile(rover, nearestEnemy);
+                    rover.fireCooldown = 1 / rover.fireRate;
+                }
+            }
         }
 
         function createExplosion(x, y, radius, damage, count = 20) {
@@ -1302,7 +1434,9 @@
         function presentUpgradeChoices() { 
             gameState = 'paused'; 
             let availableUpgrades = [...powerUps];
+            // Filter out drone_add if drone_unlock is not yet purchased
             if (player.upgrades.drone_unlock === 0) availableUpgrades = availableUpgrades.filter(u => u.id !== 'drone_add');
+            // Filter out rover_upgrade if rover_unlock is not yet purchased
             if (player.upgrades.rover_unlock === 0) availableUpgrades = availableUpgrades.filter(u => u.id !== 'rover_upgrade');
             if (player.upgrades.orbital_unlock === 0) availableUpgrades = availableUpgrades.filter(u => u.id !== 'orbital_cooldown');
 
@@ -1668,11 +1802,15 @@
                     }
                 } else if (e.type === 'spitter') { sprites.drawSpitter(ctx, e.x, e.y); }
                 else if (e.type === 'worm') { sprites.drawWorm(ctx, e.x, e.y, globalAnimTimer); }
+                else if (e.type === 'squid') { sprites.drawSquid(ctx, e.x, e.y, globalAnimTimer); } // Draw squid
                 const hp = e.health / e.maxHealth;
                 if(e.health > 0 && hp < 1){ ctx.fillStyle = '#4B5563'; ctx.fillRect(e.x - e.size, e.y - e.size - 5, e.size * 2, 4); ctx.fillStyle = '#F87171'; ctx.fillRect(e.x - e.size, e.y - e.size - 5, e.size * 2 * hp, 4); }
             });
             playerProjectiles.forEach(p => { 
-                ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); 
+                ctx.fillStyle = p.color; 
+                ctx.beginPath(); 
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); 
+                ctx.fill(); 
             });
             if (rover.active) sprites.drawRover(ctx, rover.x, rover.y);
             drones.forEach(d => sprites.drawDrone(ctx, d.x, d.y));
@@ -1811,4 +1949,3 @@
     </script>
 </body>
 </html>
-�
