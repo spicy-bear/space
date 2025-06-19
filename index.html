@@ -51,9 +51,11 @@
             background-color: rgba(17, 24, 39, 0.9);
             border-radius: 8px;
             transition: opacity 0.3s ease-in-out;
-            padding: 2rem;
+            padding: 1rem; /* Slightly reduced overall overlay padding to maximize content area */
             box-sizing: border-box;
-            z-index: 10; /* Ensure overlay is on top */
+            height: 100%; /* Ensure overlay fills height */
+            width: 100%; /* Ensure overlay fills width */
+            justify-content: flex-start; /* Align content to top */
         }
         .overlay-hidden {
             opacity: 0;
@@ -80,11 +82,33 @@
             cursor: not-allowed;
             box-shadow: none;
         }
-        .map-card {
-            background-color: #374151; border: 2px solid #9CA3AF; border-radius: 8px;
-            padding: 1rem; margin-bottom: 1rem; width: 40%; text-align: left; cursor: pointer;
-            transition: all 0.2s ease-in-out;
+        .map-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Responsive grid columns */
+            gap: 1.5rem; /* Space between cards */
+            width: 100%;
+            padding: 1.5rem;
+            box-sizing: border-box;
+            overflow-y: auto; /* Allow scrolling if many maps */
+            max-height: 80vh; /* Increased max-height to give more room */
         }
+        .map-card {
+            background-color: #374151;
+            border: 2px solid #9CA3AF;
+            border-radius: 8px;
+            padding: 1.5rem; /* Increased padding */
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        /* Ensure specific items within overlay don't shrink */
+        .overlay > *:not(.flex-grow) { 
+            flex-shrink: 0;
+        }
+
         .map-card:hover {
             transform: translateY(-5px); border-color: #FB923C; background-color: #4B5563;
         }
@@ -281,9 +305,9 @@
         <canvas id="gameCanvas"></canvas>
 
         <!-- Abort Mission Button -->
-        <button id="abortMissionButton" class="game-button absolute top-4 right-4 text-sm px-4 py-2" style="z-index: 5; display: none;">Abort Mission (X)</button>
+        <button id="abortMissionButton" class="game-button absolute top-4 right-4 text-sm px-4 py-2" style="z-index: 5; display: none;">Abort Mission</button>
         <!-- Auto-Shoot Toggle -->
-        <button id="autoShootToggle" class="game-button absolute top-28 right-4 text-sm px-4 py-2" style="z-index: 5; display: none;">Auto-Shoot: OFF</button>
+        <button id="autoShootToggle" class="game-button absolute top-[68px] right-4 text-sm px-4 py-2" style="z-index: 5; display: none;">Auto-Shoot: OFF</button>
         
         <div id="mapSelection" class="overlay overlay-hidden"></div>
         <div id="levelUpSelection" class="overlay overlay-hidden"></div>
@@ -380,6 +404,9 @@
             { id: 'planet_v2', name: 'Planet V-II', description: 'A desolate rock with a mix of fauna. Standard resource distribution.', resources: ['moondust', 'alien_chitin'] },
             { id: 'cratered_moon', name: 'Cratered Moon', description: 'Low gravity, high risk. Craters block sight and movement. Rich in moondust.', resources: ['moondust'] },
             { id: 'verdant_prime', name: 'Verdant Prime', description: 'Lush and overgrown. Flora can provide cover. Rich in organic matter.', resources: ['plant_fiber', 'alien_chitin'] },
+            { id: 'icy_planet', name: 'Glacial Wastes', description: 'A frozen world of crystal and ice. Beware of the chilling creatures.', resources: ['ice_crystal', 'frost_shard'] }, // New planet
+            { id: 'red_planet', name: 'Crimson Sands', description: 'Barren and hot, with ancient rock formations. Home to aggressive burrowers.', resources: ['moondust', 'magma_rock'] }, // New planet
+            { id: 'coral_beach', name: 'Azure Coast', description: 'Tropical islands with clear waters and unique marine life. Rich in organic materials.', resources: ['plant_fiber', 'seaweed', 'fin'] }, // New planet
         ];
         const powerUps = [
             { id: 'atk_power', title: 'Power Shot', desc: '+10% Attack Damage', apply: p => { p.attackPower *= 1.1; } },
@@ -399,6 +426,11 @@
             alien_chitin: { color: '#FCA5A5', name: 'Alien Chitin' },
             plant_fiber: { color: '#86EFAC', name: 'Plant Fiber' },
             goop: { color: '#9333ea', name: 'Goop' }, // New material
+            ice_crystal: { color: '#BFDBFE', name: 'Ice Crystal' }, // New material
+            seaweed: { color: '#6EE7B7', name: 'Seaweed' }, // New material
+            frost_shard: { color: '#A7D9ED', name: 'Frost Shard'}, // New material for icy planet
+            magma_rock: { color: '#FDBA74', name: 'Magma Rock'}, // New material for red planet
+            fin: { color: '#F0ABFC', name: 'Fin'}, // New material for beachy planet
         };
         
         const weapons = {
@@ -409,7 +441,7 @@
             'phaser': { id: 'phaser', name: 'Phaser Rifle', description: 'Rapid-fire energy bursts. Low damage but high accuracy and speed.', icon: '⚡',
                          baseDamage: 7, baseFireRate: 2, baseProjectileSpeed: 400, cost: { moondust: 70, plant_fiber: 80 } },
             'bfg': { id: 'bfg', name: 'Big Friendly Gun', description: 'Slow firing, but devastating. Fires a massive, high-damage projectile that explodes on impact.', icon: '💣',
-                       baseDamage: 50, baseFireRate: 0.3, baseProjectileSpeed: 200, cost: { moondust: 200, alien_chitin: 150, plant_fiber: 100 } },
+                       baseDamage: 50, baseFireRate: 0.3, baseProjectileSpeed: 200, explosionRadius: 60, cost: { moondust: 200, alien_chitin: 150, plant_fiber: 100 } },
         };
         const permanentUpgrades = {
             workshop: [
@@ -522,6 +554,351 @@
 
                 ctx.restore();
             },
+            // New alien sprite for Ice Planet
+            drawIceCrawler: (ctx, x, y, animTimer) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const bodyColor = '#60a5fa'; // Blue
+                const legColor = '#93c5fd'; // Light blue
+                const eyeColor = '#e0f2fe'; // Pale blue
+
+                // Body
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 15, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Legs
+                ctx.fillStyle = legColor;
+                const legWiggle = Math.sin(animTimer * 10) * 3;
+                ctx.fillRect(-12, 5 + legWiggle, 5, 8);
+                ctx.fillRect(-5, 8 - legWiggle, 5, 8);
+                ctx.fillRect(7, 5 + legWiggle, 5, 8);
+                ctx.fillRect(0, 8 - legWiggle, 5, 8);
+
+                // Eyes
+                ctx.fillStyle = eyeColor;
+                ctx.beginPath();
+                ctx.arc(-7, -5, 3, 0, Math.PI * 2);
+                ctx.arc(7, -5, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            },
+            // New alien sprite for Ice Planet (Frost Beetle)
+            drawFrostBeetle: (ctx, x, y) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const bodyColor = '#4a7090'; // Darker blue-grey
+                const armorColor = '#8fa3b7'; // Lighter blue-grey
+                const legColor = '#607d8b'; // Mid blue-grey
+
+                // Body
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 20, 12, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Armor plates
+                ctx.fillStyle = armorColor;
+                ctx.fillRect(-15, -10, 30, 8);
+                ctx.fillRect(-10, -15, 20, 8);
+
+                // Legs (simplified)
+                ctx.fillStyle = legColor;
+                ctx.fillRect(-18, 5, 5, 10);
+                ctx.fillRect(-8, 8, 5, 10);
+                ctx.fillRect(13, 5, 5, 10);
+                ctx.fillRect(3, 8, 5, 10);
+
+                ctx.restore();
+            },
+            // New alien sprite for Ice Planet (Snow Serpent)
+            drawSnowSerpent: (ctx, x, y, animTimer) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const bodyColor = '#add8e6'; // Light blue
+                const detailColor = '#e0f2fe'; // Very light blue/white
+                const eyeColor = '#000';
+
+                const segmentCount = 5;
+                const baseRadius = 8;
+                const wiggle = Math.sin(animTimer * 8) * 4;
+
+                for (let i = 0; i < segmentCount; i++) {
+                    const radius = baseRadius - i * 1;
+                    const offsetX = Math.sin(animTimer * 5 + i * 0.5) * wiggle;
+                    const offsetY = i * 10;
+                    ctx.fillStyle = `rgba(${parseInt(bodyColor.slice(1,3), 16)}, ${parseInt(bodyColor.slice(3,5), 16)}, ${parseInt(bodyColor.slice(5,7), 16)}, ${1 - i * 0.15})`;
+                    ctx.beginPath();
+                    ctx.arc(offsetX, offsetY, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Head
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.arc(0, -baseRadius - 5, baseRadius * 1.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = eyeColor;
+                ctx.beginPath();
+                ctx.arc(-5, -baseRadius - 7, 2, 0, Math.PI * 2);
+                ctx.arc(5, -baseRadius - 7, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            },
+
+            // New alien sprite for Red Planet
+            drawSandBeast: (ctx, x, y, animTimer) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const bodyColor = '#b45309'; // Dark orange
+                const shellColor = '#f97316'; // Bright orange
+                const clawColor = '#dc2626'; // Red
+
+                // Body
+                ctx.fillStyle = bodyColor;
+                ctx.fillRect(-20, -10, 40, 20);
+
+                // Shell
+                ctx.fillStyle = shellColor;
+                ctx.beginPath();
+                ctx.arc(0, -10, 25, Math.PI, Math.PI * 2);
+                ctx.fill();
+
+                // Claws
+                const clawAngle = Math.sin(animTimer * 5) * 0.2;
+                ctx.fillStyle = clawColor;
+                ctx.beginPath();
+                ctx.moveTo(-20, 0);
+                ctx.lineTo(-35 * Math.cos(clawAngle), -10 - 35 * Math.sin(clawAngle));
+                ctx.lineTo(-20, -10);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(20, 0);
+                ctx.lineTo(35 * Math.cos(clawAngle), -10 + 35 * Math.sin(clawAngle));
+                ctx.lineTo(20, -10);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+            },
+            // New alien sprite for Red Planet (Scorpion Drone)
+            drawScorpionDrone: (ctx, x, y, animTimer) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const bodyColor = '#57534e'; // Stone gray
+                const accentColor = '#f97316'; // Orange accent
+                const wheelColor = '#292524'; // Dark gray
+
+                // Body
+                ctx.fillStyle = bodyColor;
+                ctx.fillRect(-15, -8, 30, 16);
+
+                // Wheels
+                ctx.fillStyle = wheelColor;
+                ctx.beginPath();
+                ctx.arc(-10, 8, 4, 0, Math.PI * 2);
+                ctx.arc(10, 8, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tail (simplified)
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.moveTo(15, 0);
+                ctx.lineTo(25, -10);
+                ctx.lineTo(20, 0);
+                ctx.lineTo(25, 10);
+                ctx.closePath();
+                ctx.fill();
+
+                // Pincers
+                const pincerAngle = Math.sin(animTimer * 7) * 0.1;
+                ctx.strokeStyle = accentColor;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-15, -5);
+                ctx.lineTo(-25, -10 - pincerAngle * 10);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(-15, 5);
+                ctx.lineTo(-25, 10 + pincerAngle * 10);
+                ctx.stroke();
+
+                ctx.restore();
+            },
+            // New alien sprite for Red Planet (Heat Worm)
+            drawHeatWorm: (ctx, x, y, animTimer) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const bodyColor = '#a83c07'; // Deep orange
+                const glowColor = '#f97316'; // Bright orange
+                const eyeColor = '#000';
+
+                const segmentCount = 4;
+                const baseRadius = 10;
+                const wiggle = Math.sin(animTimer * 6) * 3;
+
+                for (let i = 0; i < segmentCount; i++) {
+                    const radius = baseRadius - i * 1.5;
+                    const offsetX = Math.sin(animTimer * 4 + i * 0.6) * wiggle;
+                    const offsetY = i * 12;
+                    ctx.fillStyle = `rgba(${parseInt(bodyColor.slice(1,3), 16)}, ${parseInt(bodyColor.slice(3,5), 16)}, ${parseInt(bodyColor.slice(5,7), 16)}, ${1 - i * 0.2})`;
+                    ctx.beginPath();
+                    ctx.arc(offsetX, offsetY, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Glowing effect
+                    ctx.fillStyle = `rgba(${parseInt(glowColor.slice(1,3), 16)}, ${parseInt(glowColor.slice(3,5), 16)}, ${parseInt(glowColor.slice(5,7), 16)}, ${0.7 - i * 0.15})`;
+                    ctx.beginPath();
+                    ctx.arc(offsetX, offsetY, radius * 0.7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Head
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.arc(0, -baseRadius - 7, baseRadius * 1.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = eyeColor;
+                ctx.beginPath();
+                ctx.arc(-6, -baseRadius - 9, 2.5, 0, Math.PI * 2);
+                ctx.arc(6, -baseRadius - 9, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            },
+
+            // New alien sprite for Beachy Planet
+            drawCrabMutant: (ctx, x, y, animTimer) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const bodyColor = '#ef4444'; // Red
+                const clawColor = '#facc15'; // Yellow
+                const eyeColor = '#f97316'; // Orange
+
+                // Body
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 20, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Legs (simple)
+                ctx.fillStyle = bodyColor;
+                ctx.fillRect(-15, 10, 5, 10);
+                ctx.fillRect(10, 10, 5, 10);
+
+                // Claws
+                const clawOpen = Math.sin(animTimer * 5) * 0.1 + 0.1;
+                ctx.fillStyle = clawColor;
+                ctx.beginPath();
+                ctx.moveTo(-20, -5);
+                ctx.lineTo(-30, -15 - clawOpen * 20);
+                ctx.lineTo(-25, -10);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(20, -5);
+                ctx.lineTo(30, -15 - clawOpen * 20);
+                ctx.lineTo(25, -10);
+                ctx.closePath();
+                ctx.fill();
+
+                // Eyes on stalks
+                ctx.fillStyle = eyeColor;
+                ctx.fillRect(-10, -25, 3, 10);
+                ctx.fillRect(7, -25, 3, 10);
+                ctx.beginPath();
+                ctx.arc(-8, -27, 4, 0, Math.PI * 2);
+                ctx.arc(8, -27, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            },
+            // New alien sprite for Beachy Planet (Jellyfish)
+            drawJellyfish: (ctx, x, y, animTimer) => {
+                ctx.save();
+                ctx.translate(x, y);
+                const bellColor = '#a855f7'; // Purple
+                const tentacleColor = '#c084fc'; // Lighter purple
+                const eyeColor = '#000';
+
+                // Bell
+                ctx.fillStyle = bellColor;
+                ctx.beginPath();
+                ctx.arc(0, -10, 15, Math.PI, 0, true);
+                ctx.bezierCurveTo(15, -10, 10, 5, 0, 10);
+                ctx.bezierCurveTo(-10, 5, -15, -10, -15, -10);
+                ctx.fill();
+
+                // Tentacles
+                ctx.strokeStyle = tentacleColor;
+                ctx.lineWidth = 2;
+                const tentacleWiggle = Math.sin(animTimer * 6) * 5;
+                ctx.beginPath();
+                ctx.moveTo(-8, 8);
+                ctx.lineTo(-12, 20 + tentacleWiggle);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(8, 8);
+                ctx.lineTo(12, 20 - tentacleWiggle);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, 10);
+                ctx.lineTo(0, 25 + tentacleWiggle * 0.5);
+                ctx.stroke();
+
+                // Eyes
+                ctx.fillStyle = eyeColor;
+                ctx.beginPath();
+                ctx.arc(-5, -15, 2, 0, Math.PI * 2);
+                ctx.arc(5, -15, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            },
+            // New alien sprite for Beachy Planet (Piranha Swarm) - representing one piranha
+            drawPiranha: (ctx, x, y, angle) => {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                const bodyColor = '#dc2626'; // Red
+                const finColor = '#facc15'; // Yellow
+                const eyeColor = '#000';
+
+                // Body
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(10, -5);
+                ctx.lineTo(10, 5);
+                ctx.closePath();
+                ctx.fill();
+
+                // Tail
+                ctx.fillStyle = finColor;
+                ctx.beginPath();
+                ctx.moveTo(10, 0);
+                ctx.lineTo(15, -7);
+                ctx.lineTo(15, 7);
+                ctx.closePath();
+                ctx.fill();
+
+                // Eye
+                ctx.fillStyle = eyeColor;
+                ctx.beginPath();
+                ctx.arc(-5, -2, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            },
             drawDrone: (ctx, x, y) => {
                 ctx.fillStyle = '#a1a1aa';
                 ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
@@ -579,7 +956,23 @@
                     ctx.fillRect(i, room.y - 10, 20, 10); ctx.fillRect(i+30, room.y + room.height, 20, 10);
                 }
             },
-            drawPlanetFloor: (ctx, width, height) => { if (activeMap) ctx.fillStyle = textures[activeMap.id]; else ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);},
+            drawPlanetFloor: (ctx, width, height) => { 
+                if (activeMap && activeMap.id === 'coral_beach') {
+                    // Draw blue water (bottom 1/5th)
+                    const waterHeight = canvas.height / 5;
+                    ctx.fillStyle = '#3B82F6'; // Blue for water
+                    ctx.fillRect(0, canvas.height - waterHeight, canvas.width, waterHeight);
+                    // Draw white sand (top 4/5th)
+                    ctx.fillStyle = '#F3F4F6'; // White for sand
+                    ctx.fillRect(0, 0, canvas.width, canvas.height - waterHeight);
+                } else if (activeMap) {
+                    ctx.fillStyle = textures[activeMap.id]; 
+                    ctx.fillRect(0, 0, width, height);
+                } else {
+                    ctx.fillStyle = '#000'; // Fallback
+                    ctx.fillRect(0, 0, width, height);
+                }
+            },
             drawRock: (ctx, x, y, subType) => {
                 ctx.fillStyle = '#52525b'; ctx.beginPath();
                 if(subType === 1) { ctx.moveTo(x, y); ctx.lineTo(x + 20, y - 10); ctx.lineTo(x + 30, y + 15); ctx.lineTo(x + 10, y + 25); ctx.lineTo(x - 15, y + 10); } 
@@ -589,6 +982,38 @@
                 if(subType === 1) { ctx.moveTo(x, y); ctx.lineTo(x + 20, y-10); ctx.lineTo(x-5, y-5); } 
                 else { ctx.moveTo(x, y); ctx.lineTo(x+15, y-15); ctx.lineTo(x+5, y-5); }
                 ctx.closePath(); ctx.fill();
+            },
+            // New terrain for Red Planet
+            drawLargeRock: (ctx, x, y) => {
+                ctx.fillStyle = '#7c2d12'; // Darker red-brown
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 40, y - 20);
+                ctx.lineTo(x + 60, y + 20);
+                ctx.lineTo(x + 10, y + 40);
+                ctx.lineTo(x - 30, y + 15);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#9a3412'; // Lighter red-brown for highlight
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 30, y - 15);
+                ctx.lineTo(x + 5, y - 5);
+                ctx.closePath();
+                ctx.fill();
+            },
+            drawDunes: (ctx, x, y, animTimer) => {
+                ctx.fillStyle = '#cc5a2e'; // Sandy orange
+                ctx.beginPath();
+                ctx.arc(x, y + 10, 30, 0, Math.PI, true); // Main dune curve
+                ctx.lineTo(x + 30, y + 30);
+                ctx.lineTo(x - 30, y + 30);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#d97706'; // Darker shade for shadow
+                ctx.beginPath();
+                ctx.arc(x - 10, y + 5, 20, 0, Math.PI, false); // Smaller dune detail
+                ctx.fill();
             },
             drawPlant: (ctx, x, y, subType) => {
                 ctx.fillStyle = subType === 1 ? '#166534' : '#15803d'; ctx.strokeStyle = '#14532d'; ctx.lineWidth = 2;
@@ -604,6 +1029,62 @@
                 ctx.closePath();
             },
             drawShrub: (ctx, x, y) => { ctx.fillStyle = '#4d7c0f'; ctx.beginPath(); ctx.arc(x, y, 8, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#a3e635'; ctx.beginPath(); ctx.arc(x-4, y, 4, Math.PI, 0); ctx.arc(x+4, y, 4, Math.PI, 0); ctx.fill(); },
+            // New terrain for Icy Planet
+            drawIceCave: (ctx, x, y) => {
+                ctx.fillStyle = '#4F7C8A'; // Darker icy blue
+                ctx.beginPath();
+                ctx.arc(x, y, 30, Math.PI, 0, true); // Top of cave entrance
+                ctx.lineTo(x + 30, y + 40);
+                ctx.lineTo(x - 30, y + 40);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#A7D9ED'; // Lighter icy blue for highlight
+                ctx.beginPath();
+                ctx.moveTo(x - 20, y);
+                ctx.lineTo(x - 10, y - 20);
+                ctx.lineTo(x + 10, y - 20);
+                ctx.lineTo(x + 20, y);
+                ctx.closePath();
+                ctx.fill();
+            },
+            drawIcePatch: (ctx, x, y) => {
+                ctx.fillStyle = '#BEE3F8'; // Pale blue-white for ice
+                ctx.beginPath();
+                ctx.ellipse(x, y, 35, 15, Math.random() * Math.PI, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#60A5FA'; // Blue outline
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            },
+            // New terrain for Beachy Planet
+            drawPalmTree: (ctx, x, y) => {
+                ctx.fillStyle = '#8B4513'; // Brown trunk
+                ctx.fillRect(x - 5, y - 40, 10, 50);
+                ctx.fillStyle = '#22C55E'; // Green leaves
+                ctx.beginPath();
+                ctx.moveTo(x, y - 40);
+                ctx.lineTo(x - 20, y - 60);
+                ctx.lineTo(x - 10, y - 45);
+                ctx.lineTo(x - 30, y - 30);
+                ctx.lineTo(x, y - 50);
+                ctx.lineTo(x + 30, y - 30);
+                ctx.lineTo(x + 10, y - 45);
+                ctx.lineTo(x + 20, y - 60);
+                ctx.closePath();
+                ctx.fill();
+            },
+            drawCoralFormation: (ctx, x, y) => {
+                ctx.fillStyle = '#F87171'; // Red-orange coral
+                ctx.beginPath();
+                ctx.arc(x, y, 15, 0, Math.PI * 2);
+                ctx.arc(x - 10, y + 10, 10, 0, Math.PI * 2);
+                ctx.arc(x + 10, y + 8, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#60A5FA'; // Blue highlights
+                ctx.beginPath();
+                ctx.arc(x - 5, y - 5, 5, 0, Math.PI * 2);
+                ctx.fill();
+            },
             drawCrystalResource: (ctx, x, y, radius, color) => {
                 ctx.fillStyle = color; ctx.beginPath();
                 ctx.moveTo(x, y - radius); ctx.lineTo(x + radius, y); ctx.lineTo(x + radius / 2, y + radius);
@@ -639,12 +1120,56 @@
                 ctx.ellipse(x + 5, y + 4, 4, 2, 0, 0, Math.PI * 2);
                 ctx.fill();
             },
+            // New sprite for Frost Shard material drop
+            drawFrostShard: (ctx, x, y, color) => {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(x, y - 7);
+                ctx.lineTo(x + 6, y);
+                ctx.lineTo(x, y + 7);
+                ctx.lineTo(x - 6, y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = `rgba(255, 255, 255, 0.5)`;
+                ctx.beginPath();
+                ctx.moveTo(x, y - 7);
+                ctx.lineTo(x + 3, y - 3);
+                ctx.lineTo(x, y - 4);
+                ctx.closePath();
+                ctx.fill();
+            },
+            // New sprite for Magma Rock material drop
+            drawMagmaRock: (ctx, x, y, color) => {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ef4444'; // Red hot spot
+                ctx.beginPath();
+                ctx.arc(x + 3, y - 3, 3, 0, Math.PI * 2);
+                ctx.fill();
+            },
+            // New sprite for Fin material drop
+            drawFin: (ctx, x, y, color) => {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(x - 8, y);
+                ctx.lineTo(x + 8, y - 5);
+                ctx.lineTo(x + 8, y + 5);
+                ctx.closePath();
+                ctx.fill();
+            },
             drawResourceNode: (ctx, node) => {
                 if (node.material === 'plant_fiber' && activeMap && activeMap.id === 'verdant_prime') {
                     sprites.drawMushroomResource(ctx, node.x, node.y, node.radius, materials[node.material].color);
                 } else if (node.material === 'moondust') {
                     sprites.drawCrystalResource(ctx, node.x, node.y, node.radius, materials[node.material].color);
-                } else {
+                } else if (node.material === 'ice_crystal') { // Draw for new ice_crystal
+                    sprites.drawCrystalResource(ctx, node.x, node.y, node.radius, materials[node.material].color);
+                } else if (node.material === 'seaweed') { // Draw for new seaweed
+                    sprites.drawMushroomResource(ctx, node.x, node.y, node.radius, materials[node.material].color); // Using mushroom for now
+                }
+                else {
                     ctx.fillStyle = materials[node.material].color;
                     ctx.beginPath(); ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2); ctx.fill();
                 }
@@ -656,7 +1181,18 @@
                     sprites.drawChitinShard(ctx, x, y, materials[type].color);
                 } else if (type === 'goop') { // New drawing for Goop
                     sprites.drawGoop(ctx, x, y, materials[type].color);
-                } else {
+                } else if (type === 'ice_crystal') {
+                    sprites.drawCrystalResource(ctx, x, y, 7, materials[type].color);
+                } else if (type === 'seaweed') {
+                    sprites.drawMushroomResource(ctx, x, y, 7, materials[type].color);
+                } else if (type === 'frost_shard') { // New drawing for frost_shard
+                    sprites.drawFrostShard(ctx, x, y, materials[type].color);
+                } else if (type === 'magma_rock') { // New drawing for magma_rock
+                    sprites.drawMagmaRock(ctx, x, y, materials[type].color);
+                } else if (type === 'fin') { // New drawing for fin
+                    sprites.drawFin(ctx, x, y, materials[type].color);
+                }
+                else {
                     ctx.fillStyle = materials[type].color; ctx.fillRect(x-5, y-5, 10, 10); ctx.strokeStyle = '#111827'; ctx.lineWidth = 2; ctx.strokeRect(x-5, y-5, 10, 10);
                 }
             },
@@ -666,25 +1202,88 @@
             'charger': { 
                 name: 'Charger', health: 10, xpValue: 20, 
                 drops: [{ material: 'alien_chitin', chance: 0.5, quantity: 1 }],
-                sprite: sprites.drawCharger
+                sprite: sprites.drawCharger, speed: 75, attackRadius: 64, attackDamage: 10, state: 'moving', chargeTime: 1.5, chargeTimer: 0
             },
             'spitter': { 
                 name: 'Spitter', health: 20, xpValue: 30,
                 drops: [{ material: 'alien_chitin', chance: 0.2, quantity: 1 }, { material: 'plant_fiber', chance: 0.1, quantity: 1 }],
-                sprite: sprites.drawSpitter
+                sprite: sprites.drawSpitter, speed: 50, preferredDist: 250, fireCooldown: 1, fireRate: 0.5
             },
             'worm': {
                 name: 'Rock Worm', health: 30, xpValue: 40,
                 drops: [{ material: 'moondust', chance: 0.3, quantity: 1 }, { material: 'alien_chitin', chance: 0.1, quantity: 1 }],
-                sprite: sprites.drawWorm
+                sprite: sprites.drawWorm, speed: 40, attackDamage: 15, attackCooldown: 1, attackRate: 1
             },
-            'squid': { // New alien type
+            'squid': { 
                 name: 'Acid Squid', health: 25, xpValue: 35,
                 drops: [{ material: 'goop', chance: 0.7, quantity: 1 }],
-                sprite: sprites.drawSquid,
-                attackDamage: 8, attackCooldown: 1.5, attackRate: 1/1.5, // Melee attack properties
-                speed: 60
-            }
+                sprite: sprites.drawSquid, speed: 60, attackDamage: 8, attackCooldown: 1.5, attackRate: 1/1.5
+            },
+            'ice_crawler': { 
+                name: 'Ice Crawler', health: 15, xpValue: 25,
+                drops: [{ material: 'ice_crystal', chance: 0.8, quantity: 1 }],
+                sprite: sprites.drawIceCrawler, speed: 80, attackDamage: 7, attackCooldown: 1, attackRate: 1
+            },
+            'frost_beetle': { // New alien for Glacial Wastes
+                name: 'Frost Beetle', health: 50, xpValue: 60,
+                drops: [{ material: 'frost_shard', chance: 0.9, quantity: 1 }],
+                sprite: sprites.drawFrostBeetle, speed: 30, attackDamage: 15, attackCooldown: 2.5, attackRate: 1/2.5
+            },
+            'snow_serpent': { // New alien for Glacial Wastes
+                name: 'Snow Serpent', health: 20, xpValue: 30,
+                drops: [{ material: 'frost_shard', chance: 0.7, quantity: 1 }],
+                sprite: sprites.drawSnowSerpent, speed: 70, attackDamage: 10, attackCooldown: 1, attackRate: 1 // Melee for now, could be ranged
+            },
+            'sand_beast': { 
+                name: 'Sand Beast', health: 40, xpValue: 50,
+                drops: [{ material: 'moondust', chance: 0.6, quantity: 2 }, { material: 'alien_chitin', chance: 0.3, quantity: 1 }],
+                sprite: sprites.drawSandBeast, speed: 45, attackDamage: 20, attackCooldown: 2, attackRate: 1/2
+            },
+            'scorpion_drone': { // New alien for Crimson Sands
+                name: 'Scorpion Drone', health: 20, xpValue: 30,
+                drops: [{ material: 'magma_rock', chance: 0.7, quantity: 1 }],
+                sprite: sprites.drawScorpionDrone, speed: 90, attackDamage: 8, attackCooldown: 0.7, attackRate: 1/0.7
+            },
+            'heat_worm': { // New alien for Crimson Sands
+                name: 'Heat Worm', health: 60, xpValue: 70,
+                drops: [{ material: 'magma_rock', chance: 0.8, quantity: 2 }],
+                sprite: sprites.drawHeatWorm, speed: 20, attackDamage: 25, attackCooldown: 3, attackRate: 1/3
+            },
+            'crab_mutant': { 
+                name: 'Crab Mutant', health: 35, xpValue: 45,
+                drops: [{ material: 'seaweed', chance: 0.7, quantity: 1 }, { material: 'alien_chitin', chance: 0.2, quantity: 1 }],
+                sprite: sprites.drawCrabMutant, speed: 55, attackDamage: 12, attackCooldown: 1.2, attackRate: 1/1.2
+            },
+            'jellyfish': { // New alien for Azure Coast
+                name: 'Stinging Jellyfish', health: 10, xpValue: 15,
+                drops: [{ material: 'goop', chance: 0.6, quantity: 1 }],
+                sprite: sprites.drawJellyfish, speed: 40, attackDamage: 5, attackCooldown: 0.5, attackRate: 1/0.5
+            },
+            'piranha_swarm': { // New alien for Azure Coast - represented as a single entity for now
+                name: 'Piranha Swarm', health: 70, xpValue: 80,
+                drops: [{ material: 'fin', chance: 0.9, quantity: 1 }],
+                sprite: (ctx, x, y, animTimer) => { // Custom drawing for swarm
+                    const numPiranhas = 5;
+                    const spreadRadius = 15;
+                    for(let i = 0; i < numPiranhas; i++) {
+                        const angle = (Math.PI * 2 / numPiranhas) * i + animTimer;
+                        const px = x + Math.cos(angle) * spreadRadius;
+                        const py = y + Math.sin(angle) * spreadRadius;
+                        sprites.drawPiranha(ctx, px, py, angle + Math.PI/2); // Rotate piranha to face outwards
+                    }
+                },
+                speed: 100, attackDamage: 30, attackCooldown: 1, attackRate: 1
+            },
+        };
+
+        // Define which aliens spawn on which map
+        const mapToAlienTypes = {
+            'planet_v2': ['charger', 'spitter', 'worm', 'squid'],
+            'cratered_moon': ['charger', 'worm'],
+            'verdant_prime': ['spitter', 'squid'],
+            'icy_planet': ['ice_crawler', 'frost_beetle', 'snow_serpent'], // Exclusive to icy planet
+            'red_planet': ['sand_beast', 'scorpion_drone', 'heat_worm'], // Exclusive to red planet
+            'coral_beach': ['crab_mutant', 'jellyfish', 'piranha_swarm'] // Exclusive to coral beach
         };
         
         function setupStars(count = 100) {
@@ -714,7 +1313,15 @@
         function setCanvasDimensions() {
             const rect = document.getElementById('game-container').getBoundingClientRect();
             canvas.width = rect.width; canvas.height = rect.height;
-            starbaseHub.rect = { x: canvas.width*0.25, y: canvas.height*0.1, width: canvas.width*0.5, height: canvas.height*0.8 };
+            // Adjust Starbase Hub rect to be a fixed portion of the canvas, ensuring it's not too small or large
+            // For now, let's keep it relative but ensure its center is more stable.
+            // Starbase hub boundaries
+            starbaseHub.rect.x = canvas.width * 0.2;
+            starbaseHub.rect.y = canvas.height * 0.1;
+            starbaseHub.rect.width = canvas.width * 0.6;
+            starbaseHub.rect.height = canvas.height * 0.8;
+
+            // Recalculate interactable positions based on the new hub dimensions
             const room = starbaseHub.rect;
             starbaseHub.terminal.x = room.x + room.width / 2; starbaseHub.terminal.y = room.y + 50; 
             starbaseHub.workshop.x = room.x + 60; starbaseHub.workshop.y = room.y + room.height / 2 + 20;
@@ -745,6 +1352,9 @@
             textures.planet_v2 = createPattern('#2d232e', ['#3d303f', '#1e1a1f'], 50); 
             textures.cratered_moon = createPattern('#47475a', ['#5c5c70', '#3e3e4d'], 50); 
             textures.verdant_prime = createPattern('#2a3d34', ['#3a5447', '#1f2e26'], 50); 
+            textures.icy_planet = createPattern('#1a3240', ['#2a4b5d', '#0f1e29'], 50); // New texture
+            textures.red_planet = createPattern('#5c200c', ['#7d2e13', '#4a1708'], 50); // New texture
+            // textures.coral_beach is now handled directly in drawPlanetFloor for distinct sand/water layers
         };
         
         function showOverlay(overlayId, content) {
@@ -781,8 +1391,9 @@
                 tempCanvas.width = 60; tempCanvas.height = 60;
                 const tempCtx = tempCanvas.getContext('2d');
                 // Draw sprite on a temporary canvas to get its image data
-                // Need to pass animTimer for worm and squid
-                if (key === 'worm' || key === 'squid') {
+                // Need to pass animTimer for worm, squid, ice_crawler, snow_serpent, sand_beast, heat_worm, crab_mutant, jellyfish, piranha_swarm
+                const animSpriteTypes = ['worm', 'squid', 'ice_crawler', 'snow_serpent', 'sand_beast', 'heat_worm', 'crab_mutant', 'jellyfish', 'piranha_swarm'];
+                if (animSpriteTypes.includes(key)) {
                     data.sprite(tempCtx, 30, 30, globalAnimTimer); 
                 } else {
                     data.sprite(tempCtx, 30, 30); 
@@ -873,6 +1484,7 @@
         };
 
         function setupStarbaseHub() { 
+            // Player starts at the center of the hub
             player.x = starbaseHub.rect.x + starbaseHub.rect.width / 2;
             player.y = starbaseHub.rect.y + starbaseHub.rect.height / 2;
             player.stamina = player.maxStamina; 
@@ -881,15 +1493,35 @@
         
         function showMapSelection() { 
             gameState = 'mapSelection'; 
-            let mapCardsHTML = maps.map(map => `<div class="map-card" onclick="window.startGame('${map.id}')"><h3 class="card-title text-2xl">${map.name}</h3><p class="card-desc">${map.description}</p></div>`).join(''); 
-            let content = `<h1 class="text-4xl mb-4 text-orange-300">Mission Deployment Terminal</h1><p class="text-lg mb-8 text-gray-400">Select your destination.</p><div class="flex flex-col items-center w-full">${mapCardsHTML}</div><button onclick="window.returnToHub()" class="game-button mt-8 text-sm px-6 py-3">Abort Deployment</button>`; 
+            let mapCardsHTML = maps.map(map => `
+                <div class="map-card p-4 flex flex-col justify-between">
+                    <div>
+                        <h3 class="card-title text-2xl mb-2">${map.name}</h3>
+                        <p class="card-desc">${map.description}</p>
+                    </div>
+                    <div class="mt-4 text-xs">
+                        <p>Expected Resources:</p>
+                        ${map.resources.map(r => `<span style="color:${materials[r].color}">${materials[r].name}</span>`).join(', ')}
+                    </div>
+                    <button onclick="window.startGame('${map.id}')" class="game-button mt-4 text-sm px-4 py-2">Deploy</button>
+                </div>`).join(''); 
+            
+            let content = `
+                <h1 class="text-4xl mb-4 text-orange-300">Mission Deployment Terminal</h1>
+                <p class="text-lg mb-8 text-gray-400">Select your destination.</p>
+                <div class="flex-grow flex flex-col items-center overflow-y-auto w-full"> <!-- Added flex-grow and overflow -->
+                    <div class="map-cards-grid">
+                        ${mapCardsHTML}
+                    </div>
+                </div>
+                <button onclick="window.returnToHub()" class="game-button mt-8 text-sm px-6 py-3">Abort Deployment</button>`; 
             showOverlay('mapSelection', content); 
         }
         
         function setupPlayer() { 
             Object.assign(player, { 
                 width: 16, height: 24, speed: 200, staminaRegen: 25, dashCost: 40, isDashing: false, dashCooldown: 0, dashDuration: 0.15, dashSpeed: 600, level: 1, xp: 0, xpToNextLevel: 100, xpGainMultiplier: 1.0, fireCooldown: 0, animTimer: 0, animFrame: 0, isMoving: false, 
-                inventory: { moondust: 1000, alien_chitin: 1000, plant_fiber: 1000, goop: 1000 }, // Added 'goop' to inventory
+                inventory: { moondust: 1000, alien_chitin: 1000, plant_fiber: 1000, goop: 1000, ice_crystal: 1000, seaweed: 1000, frost_shard: 1000, magma_rock: 1000, fin: 1000 }, // Added all new materials to inventory
                 upgrades: { 
                     suit_hp: 0, suit_regen: 0, suit_stamina: 0, 
                     gun_dmg: 0, gun_rate: 0, gun_proj_speed: 0,
@@ -901,7 +1533,6 @@
                 infirmaryLastUsed: -Infinity,
                 daysPassed: 1,
                 drones: 0,
-                // roverProjectiles: 0, // This variable is now managed by the rover object directly for its firing
                 orbitalCooldownMultiplier: 1.0
             }); 
             // Initialize rover properties
@@ -935,6 +1566,9 @@
             // Player's projectiles per shot should only be based on their weapon, not rover's
             player.projectilesPerShot = (equippedWeapon.projectilesPerShot || 1); 
 
+            // BFG specific explosion radius (defaults to 0 if not BFG)
+            player.explosionRadius = equippedWeapon.explosionRadius || 0;
+
             if (player.projectilesPerShot > 1 && !equippedWeapon.spreadAngle) {
                 player.spreadAngle = 0.2; 
             } else {
@@ -965,11 +1599,36 @@
             player.x = canvas.width / 2; player.y = canvas.height / 2; timer = gameDuration;
             [enemies, playerProjectiles, enemyProjectiles, shards, materialDrops, terrain, particles, missiles].forEach(arr => arr.length = 0);
             const terrainCount = 25;
-            if (activeMap.id === 'planet_v2') { for(let i=0; i<terrainCount; i++) terrain.push({ type: 'shrub', x: Math.random() * canvas.width, y: Math.random() * canvas.height }); } 
-            else if (activeMap.id === 'cratered_moon') { for(let i=0; i<terrainCount; i++) { terrain.push({ type: 'rock', subType: Math.ceil(Math.random()*2), x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 20 }); } } 
-            else if (activeMap.id === 'verdant_prime') { for(let i=0; i<terrainCount; i++) { terrain.push({ type: 'plant', subType: Math.ceil(Math.random()*3), x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 15 }); } } 
+
+            // Generate terrain based on active map
+            if (activeMap.id === 'planet_v2') { 
+                for(let i=0; i<terrainCount; i++) terrain.push({ type: 'shrub', x: Math.random() * canvas.width, y: Math.random() * canvas.height }); 
+            } 
+            else if (activeMap.id === 'cratered_moon') { 
+                for(let i=0; i<terrainCount; i++) { terrain.push({ type: 'rock', subType: Math.ceil(Math.random()*2), x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 20 }); } 
+            } 
+            else if (activeMap.id === 'verdant_prime') { 
+                for(let i=0; i<terrainCount; i++) { terrain.push({ type: 'plant', subType: Math.ceil(Math.random()*3), x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 15 }); } 
+            }
+            else if (activeMap.id === 'icy_planet') { // New terrain for icy_planet
+                for(let i=0; i<10; i++) terrain.push({ type: 'ice_cave', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 30 });
+                for(let i=0; i<15; i++) terrain.push({ type: 'ice_patch', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 25 });
+            }
+            else if (activeMap.id === 'red_planet') { // New terrain for red_planet
+                for(let i=0; i<10; i++) terrain.push({ type: 'large_rock', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 35 });
+                for(let i=0; i<15; i++) terrain.push({ type: 'dunes', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 30 });
+            }
+            else if (activeMap.id === 'coral_beach') { // New terrain for coral_beach
+                for(let i=0; i<10; i++) terrain.push({ type: 'palm_tree', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 20 });
+                for(let i=0; i<15; i++) terrain.push({ type: 'coral_formation', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 18 });
+            }
+
+            // Generate resource nodes based on active map
             if (activeMap.resources.includes('moondust')) { for(let i=0; i<5; i++) terrain.push({ type: 'resource_node', material: 'moondust', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 15, health: 30, maxHealth: 30 }); } 
             if (activeMap.resources.includes('plant_fiber')) { for(let i=0; i<5; i++) terrain.push({ type: 'resource_node', material: 'plant_fiber', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 15, health: 30, maxHealth: 30 }); } 
+            if (activeMap.resources.includes('ice_crystal')) { for(let i=0; i<5; i++) terrain.push({ type: 'resource_node', material: 'ice_crystal', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 15, health: 30, maxHealth: 30 }); }
+            if (activeMap.resources.includes('seaweed')) { for(let i=0; i<5; i++) terrain.push({ type: 'resource_node', material: 'seaweed', x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 15, health: 30, maxHealth: 30 }); }
+
             waveConfig = { spawnInterval: 3, lastSpawnTime: 0 };
         }
         
@@ -999,25 +1658,40 @@
                 }
             } else { player.animFrame = 0; }
             
-            // In hub, only collide with walls.
+            // Apply bounds checking based on game state
+            let bounds;
             if (gameState === 'starbase_hub' || gameState === 'station_menu') {
-                player.x = nextX; player.y = nextY;
-            } else { // In mission, collide with rocks/plants
-                let collided = false;
-                terrain.forEach(t => { 
-                    if(t.type === 'rock' || t.type === 'plant') {
-                        if (Math.hypot(nextX - t.x, nextY - t.y) < t.radius + player.width / 2) { 
-                            collided = true; 
-                        } 
+                bounds = starbaseHub.rect;
+            } else { // In mission
+                bounds = {x: 0, y: 0, width: canvas.width, height: canvas.height};
+            }
+
+            // Collision with static terrain objects (rocks, plants, etc.)
+            let collided = false;
+            terrain.forEach(t => { 
+                // Collision for all obstacle types
+                if(['rock', 'plant', 'large_rock', 'ice_cave', 'palm_tree', 'ice_patch', 'dunes', 'coral_formation'].includes(t.type)) { 
+                    if (Math.hypot(nextX - t.x, nextY - t.y) < (t.radius || 20) + player.width / 2) { // Use default radius if not specified
+                        collided = true; 
                     } 
-                });
-                if (!collided) { 
-                    player.x = nextX; 
-                    player.y = nextY; 
+                } 
+            });
+
+            // Specific collision for water on Azure Coast
+            if (activeMap && activeMap.id === 'coral_beach') {
+                const waterTopY = canvas.height - (canvas.height / 5); // Top edge of the water
+                if (nextY + player.height / 2 > waterTopY) { // If player is trying to enter water
+                    nextY = waterTopY - player.height / 2; // Clamp player to the sand
                 }
             }
-            
-            const bounds = (gameState === 'starbase_hub' || gameState === 'station_menu') ? starbaseHub.rect : {x: 0, y: 0, width: canvas.width, height: canvas.height};
+
+            // Apply movement if no collision with obstacles
+            if (!collided) { 
+                player.x = nextX; 
+                player.y = nextY; 
+            }
+
+            // Always clamp player to overall canvas/hub boundaries
             player.x = Math.max(bounds.x + player.width/2, Math.min(bounds.x + bounds.width - player.width/2, player.x));
             player.y = Math.max(bounds.y + player.height/2, Math.min(bounds.y + bounds.height - player.height/2, player.y));
         }
@@ -1052,6 +1726,7 @@
             enemies.forEach(enemy => {
                 const distToPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
                 const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                // General movement and attack logic based on enemy type
                 if (enemy.type === 'charger') {
                     if (enemy.state === 'moving') {
                         if (distToPlayer < enemy.attackRadius * 0.8) { enemy.state = 'charging'; enemy.chargeTimer = 0; }
@@ -1067,24 +1742,15 @@
                             setTimeout(() => { if (enemy) enemy.state = 'moving'; }, 500); 
                         }
                     }
-                } else if (enemy.type === 'spitter') {
+                } else if (enemy.type === 'spitter' || enemy.type === 'heat_worm') { // Ranged enemies
                     enemy.fireCooldown -= deltaTime;
                     if (distToPlayer > enemy.preferredDist) { enemy.x += Math.cos(angle) * enemy.speed * deltaTime; enemy.y -= Math.sin(angle) * enemy.speed * deltaTime; }
                     else { enemy.x -= Math.cos(angle) * enemy.speed * 0.5 * deltaTime; enemy.y -= Math.sin(angle) * enemy.speed * 0.5 * deltaTime; }
                     if (enemy.fireCooldown <= 0) { fireEnemyProjectile(enemy); }
-                } else if (enemy.type === 'worm') {
+                } else { // All melee types (worm, squid, ice_crawler, frost_beetle, snow_serpent, sand_beast, scorpion_drone, crab_mutant, jellyfish, piranha_swarm)
                     enemy.x += Math.cos(angle) * enemy.speed * deltaTime;
                     enemy.y += Math.sin(angle) * enemy.speed * deltaTime;
-                    if (distToPlayer < enemy.size + player.width / 2 && enemy.attackCooldown <= 0) {
-                        player.health -= enemy.attackDamage;
-                        enemy.attackCooldown = 1 / enemy.attackRate;
-                        if (player.health <= 0) { gameState = 'gameOver';}
-                    }
                     enemy.attackCooldown -= deltaTime;
-                } else if (enemy.type === 'squid') { // New squid alien behavior
-                    enemy.attackCooldown -= deltaTime;
-                    enemy.x += Math.cos(angle) * enemy.speed * deltaTime;
-                    enemy.y += Math.sin(angle) * enemy.speed * deltaTime;
                     if (distToPlayer < enemy.size + player.width / 2 && enemy.attackCooldown <= 0) {
                         player.health -= enemy.attackDamage;
                         enemy.attackCooldown = 1 / enemy.attackRate;
@@ -1094,28 +1760,48 @@
             });
         }
         function createEnemy() { 
-            const enemyTypes = Object.keys(alienData);
-            // Increased spawn variety by adding squid to the mix
-            const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)]; 
+            const allowedAlienTypes = mapToAlienTypes[activeMap.id];
+            if (!allowedAlienTypes || allowedAlienTypes.length === 0) {
+                console.warn(`No alien types defined for map: ${activeMap.id}`);
+                return;
+            }
+            const type = allowedAlienTypes[Math.floor(Math.random() * allowedAlienTypes.length)];
             const data = alienData[type];
             
             let x, y; 
-            let size, speed;
+            let size = 15; // Default size, can be overridden by specific alien data
+            let speed = data.speed;
             let enemySpecificProps = {};
 
-            if (type === 'charger') {
-                size = 16; speed = 50 + Math.random() * 50;
-                Object.assign(enemySpecificProps, { state: 'moving', chargeTime: 1.5, chargeTimer: 0, attackRadius: size * 4, attackDamage: 10 });
-            } else if (type === 'spitter') {
-                size = 12; speed = 40 + Math.random() * 30;
-                Object.assign(enemySpecificProps, { state: 'moving', preferredDist: 250 + Math.random() * 100, fireCooldown: 1, fireRate: 0.5 });
-            } else if (type === 'worm') {
-                size = 18; speed = 30 + Math.random() * 20;
-                Object.assign(enemySpecificProps, { attackDamage: 15, attackCooldown: 1, attackRate: 1 });
-            } else if (type === 'squid') { // New squid properties
-                size = 15; speed = 60 + Math.random() * 20;
-                Object.assign(enemySpecificProps, { attackDamage: 8, attackCooldown: 1.5, attackRate: 1/1.5 });
-            }
+            // Assign specific properties from alienData
+            Object.assign(enemySpecificProps, {
+                attackDamage: data.attackDamage,
+                attackCooldown: data.attackCooldown,
+                attackRate: data.attackRate,
+                fireCooldown: data.fireCooldown,
+                fireRate: data.fireRate,
+                preferredDist: data.preferredDist,
+                state: data.state,
+                chargeTime: data.chargeTime,
+                chargeTimer: data.chargeTimer,
+                attackRadius: data.attackRadius
+            });
+
+            // Set size based on type if not already defined
+            if (type === 'charger') size = 16;
+            else if (type === 'spitter') size = 12;
+            else if (type === 'worm') size = 18;
+            else if (type === 'squid') size = 15;
+            else if (type === 'ice_crawler') size = 15;
+            else if (type === 'frost_beetle') size = 20; // Size for Frost Beetle
+            else if (type === 'snow_serpent') size = 18; // Size for Snow Serpent
+            else if (type === 'sand_beast') size = 25;
+            else if (type === 'scorpion_drone') size = 15; // Size for Scorpion Drone
+            else if (type === 'heat_worm') size = 25; // Size for Heat Worm
+            else if (type === 'crab_mutant') size = 20;
+            else if (type === 'jellyfish') size = 18; // Size for Jellyfish
+            else if (type === 'piranha_swarm') size = 20; // Size for Piranha Swarm (overall size of swarm)
+
 
             const edge = Math.floor(Math.random() * 4); 
             if (edge === 0) { x = Math.random() * canvas.width; y = -size; }
@@ -1154,7 +1840,7 @@
                     vx: Math.cos(currentAngle), vy: Math.sin(currentAngle), 
                     damage: player.attackPower,
                     isBFG: isBFG, // Mark as BFG projectile
-                    explosionRadius: isBFG ? 80 : 0, // BFG explosion radius
+                    explosionRadius: equippedWeapon.explosionRadius || 0, // BFG explosion radius from weapon data
                     source: 'player'
                 }); 
             }
@@ -1335,13 +2021,22 @@
             updateDrones(deltaTime);
             updateRover(deltaTime);
             updateOrbitalStrike(deltaTime);
-            updateMissiles(deltaTime);
             updateParticles(deltaTime);
 
             waveConfig.lastSpawnTime += deltaTime; 
-            if (timer < 90) waveConfig.spawnInterval = 2.5; 
-            else if (timer < 60) waveConfig.spawnInterval = 1.5; 
-            else if (timer < 30) waveConfig.spawnInterval = 0.8;
+            // Adjust spawn interval based on current map and time remaining
+            // New maps might have different difficulty curves
+            let currentSpawnInterval = 3; // Default
+            if (activeMap.id === 'icy_planet' || activeMap.id === 'red_planet' || activeMap.id === 'coral_beach') {
+                 if (timer < 90) currentSpawnInterval = 2.0; 
+                 else if (timer < 60) currentSpawnInterval = 1.0; 
+                 else if (timer < 30) currentSpawnInterval = 0.5;
+            } else { // Original planets
+                 if (timer < 90) currentSpawnInterval = 2.5; 
+                 else if (timer < 60) currentSpawnInterval = 1.5; 
+                 else if (timer < 30) currentSpawnInterval = 0.8;
+            }
+            waveConfig.spawnInterval = currentSpawnInterval;
             
             if (waveConfig.lastSpawnTime > waveConfig.spawnInterval) {
                 waveConfig.lastSpawnTime = 0; 
@@ -1691,7 +2386,10 @@
             const hudMaterialsEl = document.getElementById('hud-materials');
             let materialsHtml = '<span class="text-orange-300 text-lg">Materials</span><br>';
             for (const matType in materials) {
-                materialsHtml += `<span style="color:${materials[matType].color};">${materials[matType].name}: ${player.inventory[matType]}</span><br>`;
+                // Only show materials the player has a non-zero quantity of, or newly added ones
+                if (player.inventory[matType] > 0 || ['frost_shard', 'magma_rock', 'fin'].includes(matType)) { 
+                     materialsHtml += `<span style="color:${materials[matType].color};">${materials[matType].name}: ${player.inventory[matType]}</span><br>`;
+                }
             }
             hudMaterialsEl.innerHTML = materialsHtml;
         }
@@ -1783,6 +2481,12 @@
                 else if (t.type === 'plant') sprites.drawPlant(ctx, t.x, t.y, t.subType);
                 else if (t.type === 'shrub') sprites.drawShrub(ctx, t.x, t.y);
                 else if (t.type === 'resource_node') sprites.drawResourceNode(ctx, t);
+                else if (t.type === 'ice_cave') sprites.drawIceCave(ctx, t.x, t.y); // Draw new terrain
+                else if (t.type === 'ice_patch') sprites.drawIcePatch(ctx, t.x, t.y); // Draw new terrain
+                else if (t.type === 'large_rock') sprites.drawLargeRock(ctx, t.x, t.y); // Draw new terrain
+                else if (t.type === 'dunes') sprites.drawDunes(ctx, t.x, t.y, globalAnimTimer); // Draw new terrain
+                else if (t.type === 'palm_tree') sprites.drawPalmTree(ctx, t.x, t.y); // Draw new terrain
+                else if (t.type === 'coral_formation') sprites.drawCoralFormation(ctx, t.x, t.y); // Draw new terrain
             });
             shards.forEach(s => { ctx.fillStyle = '#67E8F9'; ctx.beginPath(); ctx.arc(s.x, s.y, 4, 0, Math.PI * 2); ctx.fill(); });
             materialDrops.forEach(d => sprites.drawMaterial(ctx, d.x, d.y, d.type));
@@ -1803,6 +2507,16 @@
                 } else if (e.type === 'spitter') { sprites.drawSpitter(ctx, e.x, e.y); }
                 else if (e.type === 'worm') { sprites.drawWorm(ctx, e.x, e.y, globalAnimTimer); }
                 else if (e.type === 'squid') { sprites.drawSquid(ctx, e.x, e.y, globalAnimTimer); } // Draw squid
+                else if (e.type === 'ice_crawler') { sprites.drawIceCrawler(ctx, e.x, e.y, globalAnimTimer); } // Draw new alien
+                else if (e.type === 'frost_beetle') { sprites.drawFrostBeetle(ctx, e.x, e.y); } // Draw new alien
+                else if (e.type === 'snow_serpent') { sprites.drawSnowSerpent(ctx, e.x, e.y, globalAnimTimer); } // Draw new alien
+                else if (e.type === 'sand_beast') { sprites.drawSandBeast(ctx, e.x, e.y, globalAnimTimer); } // Draw new alien
+                else if (e.type === 'scorpion_drone') { sprites.drawScorpionDrone(ctx, e.x, e.y, globalAnimTimer); } // Draw new alien
+                else if (e.type === 'heat_worm') { sprites.drawHeatWorm(ctx, e.x, e.y, globalAnimTimer); } // Draw new alien
+                else if (e.type === 'crab_mutant') { sprites.drawCrabMutant(ctx, e.x, e.y, globalAnimTimer); } // Draw new alien
+                else if (e.type === 'jellyfish') { sprites.drawJellyfish(ctx, e.x, e.y, globalAnimTimer); } // Draw new alien
+                else if (e.type === 'piranha_swarm') { sprites.drawPiranha(ctx, e.x, e.y, globalAnimTimer); } // Draw new alien swarm (uses single piranha sprite for simplicity)
+                
                 const hp = e.health / e.maxHealth;
                 if(e.health > 0 && hp < 1){ ctx.fillStyle = '#4B5563'; ctx.fillRect(e.x - e.size, e.y - e.size - 5, e.size * 2, 4); ctx.fillStyle = '#F87171'; ctx.fillRect(e.x - e.size, e.y - e.size - 5, e.size * 2 * hp, 4); }
             });
@@ -1845,7 +2559,8 @@
             const abortMissionButton = document.getElementById('abortMissionButton');
             if (gameState === 'playing' || gameState === 'paused') {
                 autoShootToggle.style.display = 'block';
-                autoShootToggle.textContent = `Auto-Shoot: ${player.autoShoot ? 'ON' : 'OFF'}`;
+                // Simplified text for auto-shoot button
+                autoShootToggle.textContent = player.autoShoot ? 'Auto-Shoot: ON' : 'Auto-Shoot: OFF'; 
                 abortMissionButton.style.display = 'block';
             } else {
                 autoShootToggle.style.display = 'none';
@@ -1902,6 +2617,7 @@
                 if (key === 'e' && (gameState === 'starbase_hub' || gameState === 'station_menu') && interactionTarget) { 
                     handleInteraction(interactionTarget.id); 
                 }
+                // Only allow abort if not in a menu or map selection
                 if ((key === 'x' || key === 'escape') && (gameState === 'playing' || gameState === 'paused')) {
                     window.returnToHub();
                 }
